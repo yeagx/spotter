@@ -29,6 +29,25 @@ Plank · Hanging Leg Raise · Cable Crunch · Russian Twist · Ab Wheel · Dead 
 ## Cardio (4)
 Treadmill Walk · Treadmill Run · Stationary Bike · Rowing Machine
 
+## Mapping notes
+
+The full mapping (Spotter id → free-exercise-db id) lives in `src/db/library.ts` as `sourceId`.
+46 of 55 matched exactly. These 9 use the closest record:
+
+| Spotter | free-exercise-db | Difference |
+|---|---|---|
+| Cable Fly | Cable_Crossover | High-pulley version |
+| Lat Pulldown | Wide-Grip_Lat_Pulldown | Wide grip specifically |
+| Machine Row | Leverage_Iso_Row | Plate-loaded machine, chest pad |
+| Cable Lateral Raise | Standing_Low-Pulley_Deltoid_Raise | Same move, one arm at a time |
+| Rear Delt Fly | Seated_Bent-Over_Rear_Delt_Raise | Seated bent-over, dumbbells |
+| Overhead Dumbbell Extension | Seated_Triceps_Press | Seated, two hands on one dumbbell |
+| Bulgarian Split Squat | Split_Squat_with_Dumbbells | Same move (rear foot elevated), different name |
+| Goblet Squat | Goblet_Squat | Demo holds a kettlebell, not a dumbbell |
+| Walking Lunge | Bodyweight_Walking_Lunge | Demo is bodyweight; logging with kg still works |
+
+Re-import images with `node scripts/import-exercises.mjs <free-exercise-db clone>`.
+
 ## Form cues
 Write 2–3 short cues per exercise in Spotter's voice (short, calm, no hype). Example, Dumbbell Lateral Raise:
 - Soft bend in the elbows.

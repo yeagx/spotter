@@ -7,9 +7,11 @@ import { Michroma_400Regular } from '@expo-google-fonts/michroma';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { initDatabase } from '@/db/init';
 import { colors } from '@/theme';
 
 // Keep the native splash up until fonts are ready, so text never flashes in the system font.
@@ -29,8 +31,10 @@ export default function RootLayout() {
 
   if (!loaded && !error) return null;
 
+  // The provider holds the screens back until migrations and the library seed have run,
+  // so no screen ever reads a half-built database.
   return (
-    <>
+    <SQLiteProvider databaseName="spotter.db" onInit={initDatabase}>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -38,6 +42,6 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.ground },
         }}
       />
-    </>
+    </SQLiteProvider>
   );
 }
