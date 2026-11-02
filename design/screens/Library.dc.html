@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spotter — Exercise library</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&amp;family=Manrope:wght@500;700;800&amp;display=swap">
+<style>
+body{margin:0;background:#0B0B0B}
+a{color:#FFFFFF}a:hover{color:#FFFFFF}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+a,button,input,nav,label{flex-shrink:0;box-sizing:border-box}
+.sp-fade-x{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 40px),transparent 100%);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 40px),transparent 100%)}
+.sp-fade-y{-webkit-mask-image:linear-gradient(180deg,#000 0,#000 calc(100% - 32px),transparent 100%);mask-image:linear-gradient(180deg,#000 0,#000 calc(100% - 32px),transparent 100%)}
+@keyframes sp-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes sp-bar{from{opacity:0;transform:skewX(-26deg) scaleY(0)}to{opacity:1;transform:skewX(-26deg) scaleY(1)}}
+@keyframes sp-draw{from{stroke-dashoffset:24}to{stroke-dashoffset:0}}
+@keyframes sp-lock{from{opacity:0;letter-spacing:0.5em;filter:blur(4px)}to{opacity:1;letter-spacing:0.08em;filter:blur(0)}}
+.sp-rise{animation:sp-rise 1000ms cubic-bezier(.16,1,.3,1) both}
+.sp-bar{transform-origin:50% 100%;animation:sp-bar 900ms cubic-bezier(.16,1,.3,1) both}
+.sp-press{transition:transform 260ms cubic-bezier(.16,1,.3,1),background-color 500ms ease,box-shadow 500ms ease,color 500ms ease}
+.sp-press:active{transform:scale(.97)}
+.sp-draw path{stroke-dasharray:24;animation:sp-draw 520ms cubic-bezier(.65,0,.35,1) both}
+.sp-lock{animation:sp-lock 1400ms cubic-bezier(.16,1,.3,1) both}
+@media (prefers-reduced-motion: reduce){.sp-rise,.sp-bar,.sp-lock,.sp-draw path{animation:none}.sp-press{transition:none}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0B0B0B; color: #FFFFFF; font-family: Manrope, system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden; padding: 48px 16px 32px; gap: 16px;">
+<div class="sp-rise" style="display: flex; align-items: center; justify-content: space-between;">
+<a href="EditDay.dc.html" class="sp-press" aria-label="Back" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #161616; text-decoration: none;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>
+</a>
+<div style="font-family: Michroma, sans-serif; font-size: 11px; line-height: 14px; letter-spacing: 0.12em; color: #9A9A9A;">ADD TO MONDAY</div>
+<div style="min-width: 44px; display: flex; justify-content: flex-end;"></div>
+</div>
+
+<div class="sp-rise" style="position: relative; animation-delay: 60ms;">
+<label for="sp-search" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Search exercises</label>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9A9A9A" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" style="position: absolute; left: 16px; top: 19px;"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4 4"></path></svg>
+<input id="sp-search" type="search" placeholder="Search exercises" style="height: 56px; width: 100%; box-sizing: border-box; padding: 0 16px; border: none; border-radius: 8px; background: #222222; color: #FFFFFF; font-family: Manrope, system-ui, sans-serif; font-size: 17px; line-height: 24px; font-weight: 700; outline: none; padding-left: 44px; font-size: 15px; font-weight: 500;">
+</div>
+
+<div class="sp-rise sp-fade-x" style="display: flex; gap: 8px; overflow-x: auto; margin-right: -16px; padding-right: 16px; flex-shrink: 0; animation-delay: 120ms;">
+<sc-for list="{{ chips }}" as="c" hint-placeholder-count="6">
+<button type="button" class="sp-press" onClick="{{ c.pick }}" aria-pressed="{{ c.pressed }}" style="height: 36px; flex-shrink: 0; padding: 0 14px; border: none; border-radius: 8px; background: {{ c.bg }}; color: {{ c.ink }}; font-family: Manrope, system-ui, sans-serif; font-size: 13px; line-height: 18px; font-weight: 700; cursor: pointer;">{{ c.label }}</button>
+</sc-for>
+</div>
+
+<div class="sp-fade-y" style="flex-grow: 1; min-height: 0px; overflow-y: auto; display: flex; flex-direction: column; padding-bottom: 24px;">
+<sc-for list="{{ items }}" as="e" hint-placeholder-count="8">
+<button type="button" class="sp-rise" onClick="{{ e.pick }}" aria-pressed="{{ e.pressed }}" style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border: none; border-bottom: 1px solid #2A2A2A; background: transparent; color: #FFFFFF; font-family: Manrope, system-ui, sans-serif; text-align: left; cursor: pointer; animation-delay: {{ e.delay }};">
+<span style="width: 52px; height: 52px; flex-shrink: 0; border-radius: 8px; background: #222222; display: flex; align-items: center; justify-content: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9A9A9A" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M9 7l8 5-8 5z"></path></svg></span>
+<span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+<span style="font-size: 15px; line-height: 20px; font-weight: 700; color: {{ e.nameInk }};">{{ e.name }}</span>
+<span style="font-size: 13px; line-height: 18px; font-weight: 500; color: #9A9A9A;">{{ e.meta }}</span>
+</span>
+<span class="sp-press" style="width: 28px; height: 28px; flex-shrink: 0; border-radius: 8px; background: {{ e.boxBg }}; box-shadow: {{ e.boxRing }}; display: flex; align-items: center; justify-content: center;">
+<sc-if value="{{ e.on }}" hint-placeholder-val="{{ false }}">
+<svg class="sp-draw" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+</sc-if>
+</span>
+</button>
+</sc-for>
+<a href="Library.dc.html" style="display: flex; flex-direction: column; gap: 2px; padding: 16px 0; text-decoration: none; color: #FFFFFF;">
+<span style="font-size: 15px; line-height: 20px; font-weight: 700;">Can't find it? Create a custom exercise</span>
+<span style="font-size: 13px; line-height: 18px; font-weight: 500; color: #9A9A9A;">Custom exercises have no demo video.</span>
+</a>
+</div>
+
+<a href="EditDay.dc.html" class="sp-press" style="height: 56px; width: 100%; border: none; border-radius: 16px; background: #E70B16; color: #FFFFFF; font-family: Manrope, system-ui, sans-serif; font-size: 17px; line-height: 24px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; text-decoration: none; background: {{ ctaBg }}; color: {{ ctaInk }};">{{ cta }}</a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { filter: 'All', picked: ['Cable Fly', 'Romanian Deadlift'] };
+  }
+  renderVals() {
+    var self = this;
+    var lib = [
+      ['Barbell Bench Press', 'Chest', 'Barbell'], ['Flat Dumbbell Press', 'Chest', 'Dumbbells'], ['Cable Fly', 'Chest', 'Cable'],
+      ['Lat Pulldown', 'Back', 'Machine'], ['Seated Cable Row', 'Back', 'Cable'], ['Barbell Row', 'Back', 'Barbell'],
+      ['Overhead Press', 'Shoulders', 'Barbell'], ['Dumbbell Lateral Raise', 'Shoulders', 'Dumbbells'], ['Rear Delt Fly', 'Shoulders', 'Dumbbells'],
+      ['Dumbbell Curl', 'Arms', 'Dumbbells'], ['Triceps Pushdown', 'Arms', 'Cable'],
+      ['Leg Press', 'Legs', 'Machine'], ['Romanian Deadlift', 'Legs', 'Barbell'], ['Seated Leg Curl', 'Legs', 'Machine']
+    ];
+    var inDay = ['Seated Cable Row', 'Rear Delt Fly', 'Seated Leg Curl'];
+    var f = this.state.filter, picked = this.state.picked;
+    var chips = ['All', 'Chest', 'Back', 'Shoulders', 'Arms', 'Legs'].map(function (c) {
+      var on = c === f;
+      return { label: c, pressed: on ? 'true' : 'false', bg: on ? '#FFFFFF' : '#161616', ink: on ? '#0B0B0B' : '#9A9A9A',
+        pick: function () { self.setState({ filter: c }); } };
+    });
+    var shown = lib.filter(function (e) { return f === 'All' || e[1] === f; });
+    var items = shown.map(function (e, i) {
+      var on = picked.indexOf(e[0]) !== -1;
+      var already = inDay.indexOf(e[0]) !== -1;
+      return {
+        name: e[0], on: on, pressed: on ? 'true' : 'false',
+        meta: already ? 'Already in Monday' : e[1] + ' · ' + e[2],
+        nameInk: already ? '#9A9A9A' : '#FFFFFF',
+        delay: (160 + i * 40) + 'ms',
+        boxBg: on ? '#E70B16' : '#0B0B0B',
+        boxRing: on ? 'none' : 'inset 0 0 0 1.5px #5C5C5C',
+        pick: function () {
+          if (already) return;
+          self.setState({ picked: on ? picked.filter(function (p) { return p !== e[0]; }) : picked.concat([e[0]]) });
+        }
+      };
+    });
+    var n = picked.length;
+    return {
+      chips: chips, items: items,
+      cta: n === 0 ? 'Select exercises' : 'Add ' + n + ' to Monday',
+      ctaBg: n === 0 ? '#222222' : '#E70B16',
+      ctaInk: n === 0 ? '#9A9A9A' : '#FFFFFF'
+    };
+  }
+}
+</script>
+</body>
+</html>

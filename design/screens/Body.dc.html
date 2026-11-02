@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spotter — Body</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&amp;family=Manrope:wght@500;700;800&amp;display=swap">
+<style>
+body{margin:0;background:#0B0B0B}
+a{color:#FFFFFF}a:hover{color:#FFFFFF}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+a,button,input,nav,label{flex-shrink:0;box-sizing:border-box}
+.sp-fade-x{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 40px),transparent 100%);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 40px),transparent 100%)}
+.sp-fade-y{-webkit-mask-image:linear-gradient(180deg,#000 0,#000 calc(100% - 32px),transparent 100%);mask-image:linear-gradient(180deg,#000 0,#000 calc(100% - 32px),transparent 100%)}
+@keyframes sp-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes sp-bar{from{opacity:0;transform:skewX(-26deg) scaleY(0)}to{opacity:1;transform:skewX(-26deg) scaleY(1)}}
+@keyframes sp-draw{from{stroke-dashoffset:24}to{stroke-dashoffset:0}}
+@keyframes sp-lock{from{opacity:0;letter-spacing:0.5em;filter:blur(4px)}to{opacity:1;letter-spacing:0.08em;filter:blur(0)}}
+.sp-rise{animation:sp-rise 1000ms cubic-bezier(.16,1,.3,1) both}
+.sp-bar{transform-origin:50% 100%;animation:sp-bar 900ms cubic-bezier(.16,1,.3,1) both}
+.sp-press{transition:transform 260ms cubic-bezier(.16,1,.3,1),background-color 500ms ease,box-shadow 500ms ease,color 500ms ease}
+.sp-press:active{transform:scale(.97)}
+.sp-draw path{stroke-dasharray:24;animation:sp-draw 520ms cubic-bezier(.65,0,.35,1) both}
+.sp-lock{animation:sp-lock 1400ms cubic-bezier(.16,1,.3,1) both}
+@media (prefers-reduced-motion: reduce){.sp-rise,.sp-bar,.sp-lock,.sp-draw path{animation:none}.sp-press{transition:none}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0B0B0B; color: #FFFFFF; font-family: Manrope, system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden;">
+<div style="flex-grow: 1; padding: 56px 16px 16px; display: flex; flex-direction: column; gap: 24px; overflow-y: auto; min-height: 0px;">
+
+<div class="sp-rise" style="display: flex; align-items: flex-end; justify-content: space-between;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="font-family: Michroma, sans-serif; font-size: 11px; line-height: 14px; letter-spacing: 0.12em; color: #9A9A9A;">LAST CHECK-IN · [DATE]</div>
+<h1 style="margin: 0; font-size: 32px; line-height: 38px; font-weight: 800; letter-spacing: -0.01em;">Body</h1>
+</div>
+<button type="button" class="sp-press" style="height: 44px; padding: 0 16px; border: none; border-radius: 8px; background: #E70B16; color: #FFFFFF; font-family: Manrope, system-ui, sans-serif; font-size: 15px; line-height: 20px; font-weight: 800; cursor: pointer;">Check in</button>
+</div>
+
+<div class="sp-rise" style="display: flex; flex-direction: column; gap: 4px; animation-delay: 90ms;">
+<div style="font-family: Michroma, sans-serif; font-size: 11px; line-height: 14px; letter-spacing: 0.12em; color: #9A9A9A;">WEIGHT</div>
+<div style="display: flex; align-items: baseline; gap: 8px;">
+<span style="font-family: Michroma, sans-serif; font-size: 56px; line-height: 60px;">72.9</span>
+<span style="font-size: 15px; line-height: 22px; font-weight: 500; color: #9A9A9A;">kg · BMI 25.2</span>
+</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+<sc-for list="{{ stats }}" as="s" hint-placeholder-count="4">
+<div class="sp-rise" style="display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 16px; background: #161616; animation-delay: {{ s.delay }};">
+<div style="font-family: Michroma, sans-serif; font-size: 11px; line-height: 14px; letter-spacing: 0.12em; color: #9A9A9A;">{{ s.label }}</div>
+<div style="display: flex; align-items: baseline; gap: 4px;">
+<span style="font-family: Michroma, sans-serif; font-size: 24px; line-height: 28px;">{{ s.value }}</span>
+<span style="font-size: 13px; line-height: 18px; color: #9A9A9A;">{{ s.unit }}</span>
+</div>
+<div style="position: relative; height: 6px; border-radius: 3px; background: #222222;">
+<div style="position: absolute; top: 0px; height: 6px; border-radius: 3px; left: {{ s.rangeL }}; width: {{ s.rangeW }}; background: #5C5C5C;"></div>
+<div class="sp-bar" style="position: absolute; top: -5px; width: 4px; height: 16px; border-radius: 1px; transform: skewX(-26deg); background: #FFFFFF; left: {{ s.mark }}; animation-delay: {{ s.markDelay }};"></div>
+</div>
+<div style="font-size: 13px; line-height: 18px; font-weight: 500; color: #9A9A9A;">{{ s.range }}</div>
+</div>
+</sc-for>
+</div>
+
+<div class="sp-rise" style="display: flex; align-items: center; justify-content: space-between; padding: 16px; border-radius: 16px; background: #161616; animation-delay: 520ms;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="font-family: Michroma, sans-serif; font-size: 11px; line-height: 14px; letter-spacing: 0.12em; color: #9A9A9A;">DAILY TARGET</div>
+<div style="display: flex; align-items: baseline; gap: 4px;">
+<span style="font-family: Michroma, sans-serif; font-size: 24px; line-height: 28px;">[TARGET]</span>
+<span style="font-size: 13px; line-height: 18px; color: #9A9A9A;">kcal</span>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+<div style="font-family: Michroma, sans-serif; font-size: 11px; line-height: 14px; letter-spacing: 0.12em; color: #9A9A9A;">BMR</div>
+<div style="font-family: Michroma, sans-serif; font-size: 15px; line-height: 20px; color: #9A9A9A;">1750</div>
+</div>
+</div>
+
+<div class="sp-rise" style="display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 16px; background: #161616; animation-delay: 600ms;">
+<div style="display: flex; align-items: center; justify-content: space-between;">
+<div style="font-family: Michroma, sans-serif; font-size: 11px; line-height: 14px; letter-spacing: 0.12em; color: #9A9A9A;">TREND</div>
+<a href="Recap.dc.html" style="font-size: 13px; line-height: 18px; font-weight: 700; color: #FFFFFF; text-decoration: none;">September recap</a>
+</div>
+<div style="position: relative; height: 72px; border-bottom: 1px solid #2A2A2A;">
+<div class="sp-rise" style="position: absolute; left: 0px; top: 30px; width: 10px; height: 10px; border-radius: 50%; background: #E70B16; animation-delay: 900ms;"></div>
+</div>
+<div style="font-size: 13px; line-height: 18px; font-weight: 500; color: #9A9A9A;">Your trend starts at your next check-in.</div>
+</div>
+
+</div>
+<nav style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0px; height: 84px; flex-shrink: 0; box-sizing: border-box; padding: 10px 16px 24px; background: #161616; border-top: 1px solid #2A2A2A;">
+<a href="Main.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #9A9A9A;">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9A9A9A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5v11"></path><path d="M17.5 6.5v11"></path><path d="M3.5 9v6"></path><path d="M20.5 9v6"></path><path d="M6.5 12h11"></path></svg>
+<span style="font-size: 11px; line-height: 14px; font-weight: 700;">Today</span>
+</a>
+<a href="Plan.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #9A9A9A;">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9A9A9A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16"></path><path d="M9 3v4"></path><path d="M15 3v4"></path></svg>
+<span style="font-size: 11px; line-height: 14px; font-weight: 700;">Plan</span>
+</a>
+<a href="Body.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #FFFFFF;">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18l5-6 4 3 7-9"></path><path d="M15 6h5v5"></path></svg>
+<span style="font-size: 11px; line-height: 14px; font-weight: 700;">Body</span>
+</a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var raw = [
+      { label: 'BODY FAT', value: '23.4', unit: '%', lo: 11, hi: 22, v: 23.4, min: 5, max: 35 },
+      { label: 'MUSCLE', value: '30.3', unit: '%', lo: 30, hi: 45, v: 30.3, min: 20, max: 55 },
+      { label: 'WATER', value: '55.3', unit: '%', lo: 52, hi: 57, v: 55.3, min: 45, max: 65 },
+      { label: 'BONE', value: '3.3', unit: 'kg', lo: 1.7, hi: 3.6, v: 3.3, min: 1, max: 4.5 }
+    ];
+    var pct = function (x, s) { return ((x - s.min) / (s.max - s.min) * 100).toFixed(1) + '%'; };
+    var stats = raw.map(function (s, i) {
+      return {
+        label: s.label, value: s.value, unit: s.unit,
+        range: 'normal ' + s.lo + '–' + s.hi,
+        rangeL: pct(s.lo, s),
+        rangeW: ((s.hi - s.lo) / (s.max - s.min) * 100).toFixed(1) + '%',
+        mark: pct(s.v, s),
+        delay: (180 + i * 80) + 'ms',
+        markDelay: (500 + i * 80) + 'ms'
+      };
+    });
+    return { stats: stats };
+  }
+}
+</script>
+</body>
+</html>

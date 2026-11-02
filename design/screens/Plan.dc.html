@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spotter — Plan</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&amp;family=Manrope:wght@500;700;800&amp;display=swap">
+<style>
+body{margin:0;background:#0B0B0B}
+a{color:#FFFFFF}a:hover{color:#FFFFFF}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+a,button,input,nav,label{flex-shrink:0;box-sizing:border-box}
+.sp-fade-x{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 40px),transparent 100%);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 40px),transparent 100%)}
+.sp-fade-y{-webkit-mask-image:linear-gradient(180deg,#000 0,#000 calc(100% - 32px),transparent 100%);mask-image:linear-gradient(180deg,#000 0,#000 calc(100% - 32px),transparent 100%)}
+@keyframes sp-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes sp-bar{from{opacity:0;transform:skewX(-26deg) scaleY(0)}to{opacity:1;transform:skewX(-26deg) scaleY(1)}}
+@keyframes sp-draw{from{stroke-dashoffset:24}to{stroke-dashoffset:0}}
+@keyframes sp-lock{from{opacity:0;letter-spacing:0.5em;filter:blur(4px)}to{opacity:1;letter-spacing:0.08em;filter:blur(0)}}
+.sp-rise{animation:sp-rise 1000ms cubic-bezier(.16,1,.3,1) both}
+.sp-bar{transform-origin:50% 100%;animation:sp-bar 900ms cubic-bezier(.16,1,.3,1) both}
+.sp-press{transition:transform 260ms cubic-bezier(.16,1,.3,1),background-color 500ms ease,box-shadow 500ms ease,color 500ms ease}
+.sp-press:active{transform:scale(.97)}
+.sp-draw path{stroke-dasharray:24;animation:sp-draw 520ms cubic-bezier(.65,0,.35,1) both}
+.sp-lock{animation:sp-lock 1400ms cubic-bezier(.16,1,.3,1) both}
+@media (prefers-reduced-motion: reduce){.sp-rise,.sp-bar,.sp-lock,.sp-draw path{animation:none}.sp-press{transition:none}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0B0B0B; color: #FFFFFF; font-family: Manrope, system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden;">
+<div style="flex-grow: 1; padding: 56px 16px 16px; display: flex; flex-direction: column; gap: 24px; overflow-y: auto; min-height: 0px;">
+
+<div class="sp-rise" style="display: flex; align-items: flex-end; justify-content: space-between;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="font-family: Michroma, sans-serif; font-size: 11px; line-height: 14px; letter-spacing: 0.12em; color: #9A9A9A;">YOUR SPLIT · 3 DAYS</div>
+<h1 style="margin: 0; font-size: 32px; line-height: 38px; font-weight: 800; letter-spacing: -0.01em;">Full Body</h1>
+</div>
+<a href="EditPlan.dc.html" class="sp-press" style="height: 44px; padding: 0 16px; display: flex; align-items: center; border-radius: 8px; background: #161616; color: #FFFFFF; text-decoration: none; font-size: 15px; line-height: 20px; font-weight: 700;">Edit</a>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<sc-for list="{{ days }}" as="d" hint-placeholder-count="7">
+<div class="sp-rise" style="border-radius: 16px; background: {{ d.bg }}; animation-delay: {{ d.delay }}; overflow: hidden;">
+<button type="button" onClick="{{ d.pick }}" aria-expanded="{{ d.expanded }}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 0 16px; height: {{ d.rowH }}; border: none; background: transparent; color: #FFFFFF; font-family: Manrope, system-ui, sans-serif; text-align: left; cursor: pointer;">
+<div style="width: 36px; font-family: Michroma, sans-serif; font-size: 11px; line-height: 14px; letter-spacing: 0.12em; color: {{ d.dayInk }};">{{ d.day }}</div>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+<div style="font-size: {{ d.nameSize }}; line-height: 22px; font-weight: 700; color: {{ d.nameInk }};">{{ d.name }}</div>
+<sc-if value="{{ d.train }}" hint-placeholder-val="{{ true }}">
+<div style="font-size: 13px; line-height: 18px; font-weight: 500; color: #9A9A9A;">{{ d.meta }}</div>
+</sc-if>
+</div>
+<sc-if value="{{ d.train }}" hint-placeholder-val="{{ true }}">
+<svg class="sp-press" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9A9A9A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="transform: {{ d.chev }};"><path d="M6 9l6 6 6-6"></path></svg>
+</sc-if>
+</button>
+<sc-if value="{{ d.expanded }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; padding: 0 16px 12px 64px;">
+<sc-for list="{{ d.exercises }}" as="ex" hint-placeholder-count="6">
+<a href="Exercise.dc.html" class="sp-rise" style="display: flex; align-items: center; justify-content: space-between; height: 44px; border-top: 1px solid #2A2A2A; text-decoration: none; color: #FFFFFF; animation-delay: {{ ex.delay }};">
+<span style="font-size: 15px; line-height: 20px; font-weight: 500;">{{ ex.name }}</span>
+<span style="font-size: 13px; line-height: 18px; font-weight: 500; color: #9A9A9A;">{{ ex.scheme }}</span>
+</a>
+</sc-for>
+<button type="button" class="sp-press" style="height: 44px; display: flex; align-items: center; gap: 8px; border: none; border-top: 1px solid #2A2A2A; background: transparent; color: #9A9A9A; font-family: Manrope, system-ui, sans-serif; font-size: 15px; line-height: 20px; font-weight: 700; padding: 0; cursor: pointer;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9A9A9A" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+Add exercise
+</button>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+
+</div>
+<nav style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0px; height: 84px; flex-shrink: 0; box-sizing: border-box; padding: 10px 16px 24px; background: #161616; border-top: 1px solid #2A2A2A;">
+<a href="Main.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #9A9A9A;">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9A9A9A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5v11"></path><path d="M17.5 6.5v11"></path><path d="M3.5 9v6"></path><path d="M20.5 9v6"></path><path d="M6.5 12h11"></path></svg>
+<span style="font-size: 11px; line-height: 14px; font-weight: 700;">Today</span>
+</a>
+<a href="Plan.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #FFFFFF;">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16"></path><path d="M9 3v4"></path><path d="M15 3v4"></path></svg>
+<span style="font-size: 11px; line-height: 14px; font-weight: 700;">Plan</span>
+</a>
+<a href="Body.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #9A9A9A;">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9A9A9A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18l5-6 4 3 7-9"></path><path d="M15 6h5v5"></path></svg>
+<span style="font-size: 11px; line-height: 14px; font-weight: 700;">Body</span>
+</a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { open: 1 };
+  }
+  renderVals() {
+    var self = this;
+    var plan = [
+      { day: 'SAT', name: 'Pull & press', ex: [
+        ['Lat Pulldown', '3 × 8–12'], ['Flat Dumbbell Press', '3 × 8–12'], ['Dumbbell Lateral Raise', '4 × 12–15'],
+        ['Dumbbell Curl', '3 × 10–12'], ['Triceps Pushdown', '3 × 10–12'], ['Leg Press', '3 × 10–12']] },
+      { day: 'SUN', name: 'Rest' },
+      { day: 'MON', name: 'Rows & incline', ex: [
+        ['Seated Cable Row', '3 × 8–12'], ['Incline Dumbbell Press', '3 × 8–12'], ['Rear Delt Fly', '3 × 12–15'],
+        ['Dumbbell Hammer Curl', '3 × 10–12'], ['Overhead Dumbbell Extension', '3 × 10–12'], ['Seated Leg Curl', '3 × 12–15']] },
+      { day: 'TUE', name: 'Rest' },
+      { day: 'WED', name: 'Shoulders & isolation', ex: [
+        ['Close-Grip Lat Pulldown', '3 × 8–12']] },
+      { day: 'THU', name: 'Rest' },
+      { day: 'FRI', name: 'Rest' }
+    ];
+    var days = plan.map(function (p, i) {
+      var train = !!p.ex;
+      var expanded = train && self.state.open === i;
+      var sets = 0;
+      if (train) { p.ex.forEach(function (e) { sets += parseInt(e[1], 10); }); }
+      return {
+        day: p.day,
+        name: p.name,
+        train: train,
+        expanded: expanded,
+        delay: (80 + i * 60) + 'ms',
+        bg: train ? '#161616' : '#0B0B0B',
+        rowH: train ? '68px' : '44px',
+        nameSize: train ? '17px' : '15px',
+        nameInk: train ? '#FFFFFF' : '#9A9A9A',
+        dayInk: i === 0 ? '#FF4450' : '#9A9A9A',
+        chev: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+        meta: train ? p.ex.length + (p.ex.length === 1 ? ' exercise · ' : ' exercises · ') + sets + ' sets' : '',
+        exercises: train ? p.ex.map(function (e, j) { return { name: e[0], scheme: e[1], delay: (j * 50) + 'ms' }; }) : [],
+        pick: function () { if (train) { self.setState({ open: expanded ? -1 : i }); } }
+      };
+    });
+    return { days: days };
+  }
+}
+</script>
+</body>
+</html>
