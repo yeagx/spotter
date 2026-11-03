@@ -1,8 +1,9 @@
+import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { Equipment, Exercise, Muscle } from './types';
 
-type ExerciseRow = {
+export type ExerciseRow = {
   id: string;
   name: string;
   muscle: string;
@@ -12,7 +13,7 @@ type ExerciseRow = {
   is_custom: number;
 };
 
-function toExercise(row: ExerciseRow): Exercise {
+export function toExercise(row: ExerciseRow): Exercise {
   return {
     id: row.id,
     name: row.name,
@@ -42,4 +43,34 @@ export async function listExercises(
 export async function getExercise(db: SQLiteDatabase, id: string): Promise<Exercise | null> {
   const row = await db.getFirstAsync<ExerciseRow>('SELECT * FROM exercise WHERE id = ?', id);
   return row ? toExercise(row) : null;
+}
+
+// Custom exercises get a UUID (never a slug) so they can't collide with library ids.
+// No media: they have no demo.
+export async function createCustomExercise(
+  db: SQLiteDatabase,
+  { name, muscle }: { name: string; muscle: Muscle },
+): Promise<Exercise> {
+  const now = Date.now();
+  const exercise: Exercise = {
+    id: randomUUID(),
+    name: name.trim(),
+    muscle,
+    equipment: 'other',
+    cues: [],
+    media: null,
+    isCustom: true,
+  };
+  await db.runAsync(
+    `INSERT INTO exercise
+       (id, name, muscle, equipment, cues_json, media_json, is_custom, created_at, updated_at)
+     VALUES (?, ?, ?, ?, '[]', NULL, 1, ?, ?)`,
+    exercise.id,
+    exercise.name,
+    exercise.muscle,
+    exercise.equipment,
+    now,
+    now,
+  );
+  return exercise;
 }

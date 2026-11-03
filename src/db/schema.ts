@@ -114,4 +114,9 @@ export const MIGRATIONS: string[] = [
   );
   CREATE INDEX checkin_date ON checkin (date);
   `,
+  // 2: sex, so body stats are compared with the right normal ranges. Nullable: profiles
+  // created before this ask for it in Profile.
+  `
+  ALTER TABLE profile ADD COLUMN sex TEXT CHECK (sex IN ('male', 'female'));
+  `,
 ];

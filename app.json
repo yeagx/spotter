@@ -8,17 +8,26 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yeager.spotter"
+      "bundleIdentifier": "com.yeager.spotter",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0B0B0B",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.yeager.spotter"
+      "package": "com.yeager.spotter",
+      "blockedPermissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -35,7 +44,26 @@
           "imageWidth": 120
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-sharing",
+      "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Spotter uses a photo you choose as your profile picture.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Spotter saves your monthly recap card to your photos.",
+          "savePhotosPermission": "Spotter saves your monthly recap card to your photos.",
+          "isAccessMediaLocationEnabled": false,
+          "granularPermissions": []
+        }
+      ]
     ],
     "scheme": "spotter",
     "backgroundColor": "#0B0B0B",

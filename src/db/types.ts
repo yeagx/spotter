@@ -12,6 +12,9 @@ export const MUSCLES = [
 ] as const;
 export type Muscle = (typeof MUSCLES)[number];
 
+// ISO weekday, matching split_day.weekday: 1 = Monday ... 7 = Sunday.
+export type Weekday = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
 export type Equipment = 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweight' | 'other';
 
 // What the demo player shows. `key` points into a bundled registry (see exerciseFrames.ts),

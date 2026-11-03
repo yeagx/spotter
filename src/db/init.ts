@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { exerciseVideos } from './exerciseVideos';
 import { LIBRARY, LIBRARY_VERSION } from './library';
 import { MIGRATIONS } from './schema';
 import type { ExerciseMedia } from './types';
@@ -36,7 +37,11 @@ async function seedLibrary(db: SQLiteDatabase) {
   const now = Date.now();
   await db.withTransactionAsync(async () => {
     for (const e of LIBRARY) {
-      const media: ExerciseMedia = { type: 'frames', key: e.id };
+      // A filmed clip replaces the photo frames as soon as one is registered.
+      const media: ExerciseMedia = {
+        type: e.id in exerciseVideos ? 'video' : 'frames',
+        key: e.id,
+      };
       await db.runAsync(
         `INSERT INTO exercise
            (id, name, muscle, equipment, cues_json, media_json, is_custom, created_at, updated_at)

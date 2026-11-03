@@ -14,6 +14,8 @@ export const colors = {
   spotterRed: '#E70B16',
   redText: '#FF4450',
   onRed: '#FFFFFF',
+  // Dims the app behind dialogs and the guided tour (ground at 80%).
+  scrim: 'rgba(11, 11, 11, 0.8)',
 } as const;
 
 // Font names as registered by useFonts in src/app/_layout.tsx.
@@ -27,8 +29,19 @@ export const fonts = {
 
 export const type = {
   // Numbers (display family)
+  // Sessions count on the recap card, from design/screens/Recap.dc.html.
+  numeralHero: { fontFamily: fonts.display, fontSize: 72, lineHeight: 76 },
   numeralXl: { fontFamily: fonts.display, fontSize: 56, lineHeight: 60 },
   numeralL: { fontFamily: fonts.display, fontSize: 32, lineHeight: 36 },
+  // Set rows in Workout and stat cards on Body.
+  numeralM: { fontFamily: fonts.display, fontSize: 24, lineHeight: 28 },
+  // Stepper values and compact number inputs, from design/screens/EditDay.dc.html.
+  numeralS: { fontFamily: fonts.display, fontSize: 20, lineHeight: 26 },
+  // Last-time weights on Today and the recap lines.
+  numeralR: { fontFamily: fonts.display, fontSize: 17, lineHeight: 22 },
+  numeralXs: { fontFamily: fonts.display, fontSize: 15, lineHeight: 20 },
+  // Set numbers, the session clock and the small "locked in." in Workout.
+  numeralCaption: { fontFamily: fonts.display, fontSize: 13, lineHeight: 18 },
   // Uppercase labels above numbers; letter spacing from the mockups (0.12em).
   labelWide: {
     fontFamily: fonts.display,
@@ -38,10 +51,18 @@ export const type = {
     textTransform: 'uppercase',
   },
   // Text (sans family)
+  // Split name on the Plan tab, from design/screens/Plan.dc.html.
+  titleL: { fontFamily: fonts.sans800, fontSize: 32, lineHeight: 38, letterSpacing: -0.3 },
   title: { fontFamily: fonts.sans800, fontSize: 24, lineHeight: 30 },
   heading: { fontFamily: fonts.sans700, fontSize: 17, lineHeight: 24 },
   body: { fontFamily: fonts.sans500, fontSize: 15, lineHeight: 22 },
   caption: { fontFamily: fonts.sans500, fontSize: 13, lineHeight: 18 },
+  // Bold variants the mockups use for row titles, chips and buttons.
+  bodyStrong: { fontFamily: fonts.sans700, fontSize: 15, lineHeight: 20 },
+  captionStrong: { fontFamily: fonts.sans700, fontSize: 13, lineHeight: 18 },
+  button: { fontFamily: fonts.sans800, fontSize: 17, lineHeight: 24 },
+  // Initial in the large profile avatar.
+  avatarInitial: { fontFamily: fonts.sans800, fontSize: 40, lineHeight: 48 },
   // Tab bar label, from design/screens/Main.dc.html.
   tabLabel: { fontFamily: fonts.sans700, fontSize: 11, lineHeight: 14 },
 } satisfies Record<string, TextStyle>;
@@ -49,6 +70,8 @@ export const type = {
 export const space = {
   1: 4,
   2: 8,
+  // Not in tokens.json, but every mockup uses it between an icon or label column and text.
+  3: 12,
   4: 16,
   6: 24,
   8: 32,
@@ -66,17 +89,88 @@ export const size = {
   buttonPrimary: 56,
   tapTarget: 44,
   icon: 24,
+  iconMd: 20,
+  iconSm: 18,
+  iconXs: 16,
   iconStroke: 1.5,
+  // Filter chips sit at 36px; hitSlop brings their tap area to 44.
+  chip: 36,
+  // Sets stepper buttons: narrow so three fields fit at 360px; hitSlop restores 44.
+  stepper: 32,
+  // Library checkbox and exercise thumbnail.
+  check: 28,
+  thumb: 52,
+  // Min width of the SAT/SUN column, so day names line up row to row.
+  dayColumn: 44,
+  // Outline on secondary buttons and the open exercise card.
+  ring: 1.5,
+  // Divider lines inside cards. 1dp, not hairlineWidth, so they stay visible on dense screens.
+  divider: 1,
+  // Avatars: Today's corner button, the onboarding photo picker, the Profile header.
+  avatarS: 36,
+  avatarM: 88,
+  avatarL: 112,
+  avatarBadge: 32,
+  // Logo mark heights (width follows the mark's aspect ratio).
+  logoXs: 26,
+  logoS: 32,
+  logoL: 104,
+  logoXl: 120,
+  // Slanted strips: progress segments, week bars, recap ticks.
+  stripThin: 6,
+  stripBar: 28,
+  weekBar: 14,
+  // Slanted bullet beside each form cue.
+  cueMarkWidth: 6,
+  cueMarkHeight: 14,
+  // Value marker on a body stat's range bar, and the latest point on the trend line.
+  markerWidth: 4,
+  markerHeight: 16,
+  trendDot: 10,
+  stripTick: 40,
+  chartTrend: 72,
+  chartHistory: 64,
+  // Radio dot on the onboarding goal cards.
+  radio: 20,
 } as const;
+
+// The logo's cut: about 1 across for every 2 down (~26°). Slanted shapes are drawn
+// as polygons whose top edge is offset by height * slant inside their own box.
+export const slant = 0.5;
 
 // Above wideBreakpoint (tablets, Android large screens that ignore the portrait lock),
 // content sits in a centered column of maxContentWidth.
 export const layout = {
   wideBreakpoint: 600,
   maxContentWidth: 480,
+  // Scroll-edge fades that stand in for scrollbars.
+  fadeY: 32,
+  fadeX: 40,
 } as const;
 
-// Slow ease-out, never bouncy: cubic-bezier(.16,1,.3,1).
+// Slow ease-out, never bouncy: cubic-bezier(.16,1,.3,1). Timings from the mockups' CSS.
 export const motion = {
   easeOut: [0.16, 1, 0.3, 1] as const,
+  riseMs: 1000,
+  riseDistance: 14,
+  staggerMs: 60,
+  pressMs: 260,
+  pressScale: 0.97,
+  expandMs: 500,
+  // Demo player: each frame holds this long (doubled at half speed).
+  frameMs: 700,
+  // Launch: logo in from blur, short hold, then out.
+  launchInMs: 700,
+  launchOutMs: 450,
+  launchHoldMs: 250,
+  // "locked in." sequence on Start, from design/screens/Start.dc.html.
+  focusMs: 2200,
+  lockDelayMs: 1500,
+  lockMs: 1400,
+  sweepDelayMs: 1900,
+  sweepMs: 900,
+  dayLineDelayMs: 2200,
+  beginHintDelayMs: 2800,
+  fadeMs: 600,
+  barMs: 900,
 };
