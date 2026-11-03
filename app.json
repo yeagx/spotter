@@ -69,6 +69,12 @@
     "backgroundColor": "#0B0B0B",
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1fbf4159-0b8f-486b-859e-cdc99177f3d5"
+      }
+    },
+    "owner": "yeagx"
   }
 }
