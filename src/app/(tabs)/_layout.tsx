@@ -1,7 +1,7 @@
 import { Redirect, Tabs } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { useWindowDimensions } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BodyIcon, PlanIcon, TodayIcon } from '@/components/TabIcons';
@@ -42,12 +42,15 @@ export default function TabsLayout() {
   // The bar needs a numeric height: its inner row is flex: 1, which collapses to 0 on
   // native under an auto-height parent. Sum the parts, scaling the label with the
   // system font size so large text grows the bar instead of clipping.
+  // The top border and, on web, the item's own 5px padding take room too.
   const tabBarHeight =
+    size.divider +
     space[2] +
     size.icon +
     space[1] +
     Math.ceil(type.tabLabel.lineHeight * fontScale) +
     space[2] +
+    (Platform.OS === 'web' ? WEB_TAB_ITEM_PADDING * 2 : 0) +
     insets.bottom;
 
   // First open: no profile yet, so onboarding comes first. The launch animation covers
@@ -72,7 +75,7 @@ export default function TabsLayout() {
           tabBarStyle: {
             backgroundColor: colors.surface,
             borderTopColor: colors.hairline,
-            borderTopWidth: 1,
+            borderTopWidth: size.divider,
             height: tabBarHeight,
             paddingTop: space[2],
             paddingBottom: insets.bottom + space[2],
@@ -101,3 +104,5 @@ export default function TabsLayout() {
 }
 
 const TOUR_KEY = 'tour_done';
+// react-native-web's tab button adds this padding regardless of tabBarItemStyle.
+const WEB_TAB_ITEM_PADDING = 5;
