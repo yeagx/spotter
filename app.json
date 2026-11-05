@@ -2,7 +2,7 @@
   "expo": {
     "name": "Spotter",
     "slug": "spotter",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -14,6 +14,8 @@
       }
     },
     "android": {
+      "package": "com.yeager.spotter",
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#0B0B0B",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -21,7 +23,6 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.yeager.spotter",
       "blockedPermissions": [
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",

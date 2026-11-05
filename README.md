@@ -59,8 +59,17 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 - Sessions done against planned, best lift, new bests, and body-fat change when there are two check-ins to compare.
 - Save it to your gallery or share it, with or without your name and photo.
 
+**On your home screen** (Android)
+- **Today**: the day's first exercises with last weights, the week as slanted bars, and Start.
+- **Month**: sessions done against planned, best lift, new bests, body-fat change.
+- **Best lift**: one lift you pick, its best set and its last six sessions.
+- **Body**: your last check-in against your target. **Start**: one tap into today's session.
+- **Me**: your photo in a ring that fills with this month's sessions.
+- Widgets refresh as you train, and drop rows rather than squeeze when resized.
+
 **Stays current**
 - Profile → *Check for updates* asks GitHub for the latest release and links straight to the new APK.
+- After an update with something new, a short *What's new* shows once. Fixes-only updates stay silent.
 
 ## Install
 
@@ -94,7 +103,8 @@ The full brand book, tokens and approved mockups live in [`design/`](design/).
 | Motion | `react-native-reanimated` · `react-native-svg` for the slanted shapes · `expo-haptics` |
 | Keyboard | `react-native-keyboard-controller`, so pinned buttons ride the keyboard frame by frame |
 | Media | Demo player that's source-agnostic: photo frames today, filmed `expo-video` loops later with no UI change |
-| Sharing | `react-native-view-shot` · `expo-sharing` · `expo-media-library` |
+| Sharing | `react-native-view-shot` · `expo-sharing` · `expo-media-library` · `expo-clipboard` |
+| Widgets | [`react-native-android-widget`](https://github.com/sAleksovski/react-native-android-widget), drawn from the same SQLite data as the screens |
 | Builds | [EAS Build](https://docs.expo.dev/build/introduction/) → APK attached to GitHub Releases |
 
 ## Run it locally
@@ -108,7 +118,7 @@ npm install
 npx expo start
 ```
 
-Scan the QR code with Expo Go. Other useful commands:
+Scan the QR code with Expo Go. Everything runs there except the home screen widgets, which need a build that includes their native module (`eas build --profile development`, or the release APK). Other useful commands:
 
 ```bash
 npx expo start --web   # browser preview (SQLite runs on WebAssembly there)
@@ -125,9 +135,11 @@ src/
     workout/      Workout mode for one session
     ...           Onboarding, Edit split, Edit day, Library, Check-in, Recap, Profile
   components/     Shared UI: buttons, dialogs, the demo player, slanted strips, the tour
+  config/         Things you edit by hand: the support link, What's new notes
   db/             SQLite schema and migrations, the exercise library, queries
   lib/            Formatting, units, body ranges, calories, motion, update check
   state/          The shared profile and units
+  widgets/        Android home screen widgets, their data and the Best lift picker
   theme.ts        Every colour, size and type style, from design/tokens.json
 assets/           Icons, the logo and the 56 exercises' demo frames
 design/           Brand book, tokens, mockups, logo
@@ -139,7 +151,8 @@ scripts/          Exercise import and brand-asset generation
 Versions are `vMAJOR.MINOR.PATCH`, and the tag must match `version` in `app.json`.
 
 ```bash
-# 1. Bump "version" in app.json, commit and push.
+# 1. Bump "version" and "android.versionCode" (+1) in app.json. If the release brings
+#    anything new, add its notes to src/config/whatsNew.ts. Commit, tag and push.
 # 2. Build the APK in the cloud:
 npx eas-cli@latest build -p android --profile preview
 # 3. Publish it; installed copies will offer the update in Profile:
