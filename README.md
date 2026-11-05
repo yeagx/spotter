@@ -68,7 +68,7 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 - Widgets refresh as you train, and drop rows rather than squeeze when resized.
 
 **Stays current**
-- Profile → *Check for updates* asks GitHub for the latest release and links straight to the new APK.
+- Once a day Spotter quietly asks GitHub for the latest release. When there's a new one, a small dot appears on your picture, and Profile → Updates links straight to the new APK. *Check for updates* is there too, any time.
 - After an update with something new, a short *What's new* shows once. Fixes-only updates stay silent.
 
 ## Install

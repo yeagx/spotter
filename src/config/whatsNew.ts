@@ -10,6 +10,15 @@ export type WhatsNewEntry = { version: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: '1.2.0',
+    items: [
+      {
+        title: 'Updates find you',
+        line: 'Spotter checks for a new version once a day. When there is one, a small dot shows on your picture; the update waits in Profile.',
+      },
+    ],
+  },
+  {
     version: '1.1.0',
     items: [
       {
