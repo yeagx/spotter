@@ -18,6 +18,10 @@ import { KeyboardProvider } from '@/lib/keyboard';
 import { ProfileProvider, useProfile } from '@/state/profile';
 import { colors } from '@/theme';
 
+// A widget tap can open a screen deep in the stack (Start, Recap, an exercise) with the
+// app closed. The anchor puts the tabs underneath it, so Back lands on Today, not out.
+export const unstable_settings = { anchor: '(tabs)' };
+
 // Keep the native splash up until fonts and the database are ready, so text never
 // flashes in the system font. <Launch> hides it once it can take over.
 SplashScreen.preventAutoHideAsync();

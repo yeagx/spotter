@@ -21,7 +21,7 @@ import { createSession } from '@/db/sessions';
 import { notify } from '@/lib/confirm';
 import { easeOut, isWeb, webSafe } from '@/lib/motion';
 import { dayTitle } from '@/lib/scheme';
-import { WEEK } from '@/lib/week';
+import { WEEK, today } from '@/lib/week';
 import { colors, motion, size, space, type } from '@/theme';
 
 // The logo's three beats, played once as a workout starts: focus (in from blur),
@@ -70,19 +70,29 @@ const fadeIn = (delay: number) =>
   );
 
 export default function StartScreen() {
-  const { dayId } = useLocalSearchParams<{ dayId: string }>();
+  // Without a dayId (the home screen widgets), start whatever today is, worked out now,
+  // so a widget that hasn't refreshed since midnight still opens the right day.
+  const params = useLocalSearchParams<{ dayId?: string }>();
   const db = useSQLiteContext();
   const reduceMotion = useReducedMotion();
   const [line, setLine] = useState('');
+  const [dayId, setDayId] = useState(params.dayId ?? null);
   const starting = useRef(false);
 
   useEffect(() => {
     getSplit(db).then((split) => {
       const training = WEEK.flatMap((w) => split?.days.filter((d) => d.weekday === w) ?? []);
-      const i = training.findIndex((d) => d.id === dayId);
-      if (i >= 0) setLine(`Day ${i + 1} · ${dayTitle(training[i])}`);
+      const i = params.dayId
+        ? training.findIndex((d) => d.id === params.dayId)
+        : training.findIndex((d) => d.weekday === today());
+      if (i >= 0) {
+        setDayId(training[i].id);
+        setLine(`Day ${i + 1} · ${dayTitle(training[i])}`);
+      } else if (!params.dayId) {
+        router.replace('/'); // a rest day: Today says so and offers the next one
+      }
     });
-  }, [db, dayId]);
+  }, [db, params.dayId]);
 
   // "locked in." gathers from wide spacing, the way the letters settle into the mark.
   const lock = useSharedValue(reduceMotion ? 1 : 0);

@@ -1,6 +1,8 @@
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { dataChanged } from './changes';
+
 export type Goal = 'lean' | 'healthy';
 export type Units = 'kg' | 'lb';
 export type CalorieMode = 'estimate' | 'custom';
@@ -104,3 +106,5 @@ export async function updateProfile(
     id,
   );
 }
+  dataChanged();
+  dataChanged();

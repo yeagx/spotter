@@ -2,25 +2,9 @@ import { useState } from 'react';
 import { View, type ColorValue, type LayoutChangeEvent } from 'react-native';
 import Svg, { Polygon } from 'react-native-svg';
 
-import { slant } from '@/theme';
+import { slantPoints, stripBoxes } from '@/lib/slant';
 
-// The slant, the one decorative move. Every shape is a polygon cut inside its own box,
-// never a rotated or skewed element, so nothing overflows its container.
-
-// Horizontal offset of the cut for a w × h box: the logo's ~26° angle, capped so tall
-// narrow bars keep a flat top.
-const cutFor = (w: number, h: number) => Math.min(h * slant, w * 0.34);
-
-type Edge = 'slant' | 'straight';
-
-function points(x: number, y: number, w: number, h: number, left: Edge, right: Edge) {
-  const c = cutFor(w, h);
-  const top = y;
-  const bottom = y + h;
-  const tl = left === 'slant' ? x + c : x;
-  const br = right === 'slant' ? x + w - c : x + w;
-  return `${tl},${top} ${x + w},${top} ${br},${bottom} ${x},${bottom}`;
-}
+// The slant, the one decorative move. The geometry lives in src/lib/slant.ts.
 
 export type StripBar = { color: ColorValue; value?: number }; // value 0..1 of the height
 
@@ -35,30 +19,19 @@ type StripProps = {
 export function SlantStrip({ bars, height, gap }: StripProps) {
   const [width, setWidth] = useState(0);
   const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
-  const n = bars.length;
-  const w = n ? (width - gap * (n - 1)) / n : 0;
+  const boxes = width > 0 ? stripBoxes(bars.map((b) => b.value ?? 1), width, height, gap) : [];
 
   return (
     <View onLayout={onLayout} style={{ height }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {width > 0 && w > 0 && (
+      {boxes.length > 0 && (
         <Svg width={width} height={height}>
-          {bars.map((b, i) => {
-            const h = Math.max(1, height * (b.value ?? 1));
-            return (
-              <Polygon
-                key={i}
-                points={points(
-                  i * (w + gap),
-                  height - h,
-                  w,
-                  h,
-                  i === 0 ? 'straight' : 'slant',
-                  i === n - 1 ? 'straight' : 'slant',
-                )}
-                fill={b.color}
-              />
-            );
-          })}
+          {boxes.map((b, i) => (
+            <Polygon
+              key={i}
+              points={slantPoints(b.x, b.y, b.w, b.h, b.left, b.right)}
+              fill={bars[i].color}
+            />
+          ))}
         </Svg>
       )}
     </View>
@@ -69,7 +42,7 @@ export function SlantStrip({ bars, height, gap }: StripProps) {
 export function SlantBar({ width, height, color }: { width: number; height: number; color: ColorValue }) {
   return (
     <Svg width={width} height={height}>
-      <Polygon points={points(0, 0, width, height, 'slant', 'slant')} fill={color} />
+      <Polygon points={slantPoints(0, 0, width, height, 'slant', 'slant')} fill={color} />
     </Svg>
   );
 }

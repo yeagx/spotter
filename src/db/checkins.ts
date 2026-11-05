@@ -1,6 +1,8 @@
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { dataChanged } from './changes';
+
 // A body check-in, usually copied from an InBody-style scan. Only weight is required.
 // date is the local calendar day (YYYY-MM-DD); weight and bone are kg.
 export type Checkin = {
@@ -71,8 +73,10 @@ export async function saveCheckin(
       now,
     );
   });
+  dataChanged();
 }
 
 export async function deleteCheckin(db: SQLiteDatabase, id: string): Promise<void> {
   await db.runAsync('DELETE FROM checkin WHERE id = ?', id);
+  dataChanged();
 }

@@ -63,6 +63,94 @@
           "isAccessMediaLocationEnabled": false,
           "granularPermissions": []
         }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "fonts": [
+            "./node_modules/@expo-google-fonts/michroma/400Regular/Michroma_400Regular.ttf",
+            "./node_modules/@expo-google-fonts/manrope/500Medium/Manrope_500Medium.ttf",
+            "./node_modules/@expo-google-fonts/manrope/700Bold/Manrope_700Bold.ttf",
+            "./node_modules/@expo-google-fonts/manrope/800ExtraBold/Manrope_800ExtraBold.ttf"
+          ],
+          "widgets": [
+            {
+              "name": "Today",
+              "label": "Today",
+              "description": "Today’s session and your week.",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "Month",
+              "label": "Month",
+              "description": "Sessions this month, best lift and new bests.",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 3600000
+            },
+            {
+              "name": "BestLift",
+              "label": "Best lift",
+              "description": "One lift, its best and its last six sessions.",
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "widgetFeatures": "reconfigurable"
+            },
+            {
+              "name": "Body",
+              "label": "Body",
+              "description": "Your last check-in.",
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical"
+            },
+            {
+              "name": "Start",
+              "label": "Start",
+              "description": "Start today’s session in one tap.",
+              "minWidth": "40dp",
+              "minHeight": "40dp",
+              "targetCellWidth": 1,
+              "targetCellHeight": 1,
+              "resizeMode": "horizontal|vertical"
+            },
+            {
+              "name": "Me",
+              "label": "Me",
+              "description": "Your month around your photo.",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 3600000
+            },
+            {
+              "name": "MeSmall",
+              "label": "Me (small)",
+              "description": "Your photo and this month’s sessions.",
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 3600000
+            }
+          ]
+        }
       ]
     ],
     "scheme": "spotter",

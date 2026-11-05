@@ -1,6 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { dataChanged } from './changes';
 import { toExercise, type ExerciseRow } from './exercises';
 import type { Exercise, Weekday } from './types';
 
@@ -169,6 +170,7 @@ export async function saveSplit(
       }
     }
   });
+  dataChanged();
 }
 
 export type DayExerciseDraft = {
@@ -230,6 +232,7 @@ export async function saveDay(
       );
     }
   });
+  dataChanged();
 }
 
 // Appends exercises to the end of a day with the default scheme (Plan's quick add).
@@ -264,4 +267,5 @@ export async function addExercisesToDay(
       );
     }
   });
+  dataChanged();
 }

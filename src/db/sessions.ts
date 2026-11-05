@@ -1,6 +1,8 @@
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { dataChanged } from './changes';
+
 // A workout session and the sets logged in it. All weights are kg.
 
 export type Session = {
@@ -69,6 +71,7 @@ export async function createSession(db: SQLiteDatabase, splitDayId: string): Pro
     now,
     now,
   );
+  dataChanged();
   return id;
 }
 
@@ -96,6 +99,7 @@ export async function endSession(
   );
   if (!row?.n) {
     await db.runAsync('DELETE FROM session WHERE id = ?', id);
+    dataChanged();
     return 'discarded';
   }
   const now = Date.now();
@@ -105,6 +109,7 @@ export async function endSession(
     now,
     id,
   );
+  dataChanged();
   return 'finished';
 }
 
@@ -140,10 +145,12 @@ export async function saveSetLog(
     now,
     now,
   );
+  dataChanged();
 }
 
 export async function deleteSetLog(db: SQLiteDatabase, id: string): Promise<void> {
   await db.runAsync('DELETE FROM set_log WHERE id = ?', id);
+  dataChanged();
 }
 
 // The sets from the most recent other session that included this exercise, in order.
