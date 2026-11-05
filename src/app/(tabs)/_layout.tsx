@@ -1,6 +1,6 @@
-import { Redirect, Tabs } from 'expo-router';
+import { Redirect, Tabs, router, usePathname } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,6 +9,7 @@ import { Tour } from '@/components/Tour';
 import { getMeta, setMeta } from '@/db/meta';
 import { getSplit } from '@/db/plan';
 import { useContentColumn } from '@/hooks/useContentColumn';
+import { markNotesSeen, unseenNotes } from '@/lib/whatsNew';
 import { useProfile } from '@/state/profile';
 import { colors, size, space, type } from '@/theme';
 
@@ -21,18 +22,32 @@ export default function TabsLayout() {
   // The guided tour runs once, the first time the tabs open after onboarding.
   const [tour, setTour] = useState<{ hasSplit: boolean } | null>(null);
 
+  // What's new is checked once per launch, and only when the app opened on a tab: a
+  // widget tap straight into a workout isn't the moment, so it waits for the next open.
+  const pathname = usePathname();
+  const checkedNotes = useRef(false);
+
   useEffect(() => {
     if (!profile) return;
     let active = true;
     (async () => {
-      if (await getMeta(db, TOUR_KEY)) return;
-      const split = await getSplit(db);
-      if (active) setTour({ hasSplit: Boolean(split) });
+      if (!(await getMeta(db, TOUR_KEY))) {
+        // New here: the tour shows the whole app, so there's nothing "new" to announce.
+        await markNotesSeen(db);
+        const split = await getSplit(db);
+        if (active) setTour({ hasSplit: Boolean(split) });
+        return;
+      }
+      if (checkedNotes.current) return;
+      checkedNotes.current = true;
+      if (!TAB_ROUTES.includes(pathname)) return;
+      const { since, entries } = await unseenNotes(db);
+      if (active && entries.length) router.push({ pathname: '/whats-new', params: { since } });
     })();
     return () => {
       active = false;
     };
-  }, [db, profile]);
+  }, [db, profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const endTour = () => {
     setTour(null);
@@ -104,5 +119,6 @@ export default function TabsLayout() {
 }
 
 const TOUR_KEY = 'tour_done';
+const TAB_ROUTES = ['/', '/plan', '/body'];
 // react-native-web's tab button adds this padding regardless of tabBarItemStyle.
 const WEB_TAB_ITEM_PADDING = 5;

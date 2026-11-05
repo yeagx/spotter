@@ -64,6 +64,7 @@ export default function RootLayout() {
             <Stack.Screen name="workout/[id]" options={{ animation: 'fade', gestureEnabled: false }} />
             <Stack.Screen name="done/[id]" options={{ animation: 'fade', gestureEnabled: false }} />
             <Stack.Screen name="recap" options={{ animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="whats-new" options={{ animation: 'slide_from_bottom' }} />
           </Stack>
           <LaunchGate />
           <DialogHost />

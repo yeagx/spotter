@@ -18,6 +18,7 @@ import { rise, stagger } from '@/lib/motion';
 import { pickProfilePhoto, removeProfilePhoto } from '@/lib/photo';
 import { formatNumber } from '@/lib/units';
 import { APP_VERSION, checkForUpdate, type UpdateResult } from '@/lib/updates';
+import { currentNotes } from '@/lib/whatsNew';
 import { useProfile, useUnits } from '@/state/profile';
 import { colors, radius, size, space, type } from '@/theme';
 
@@ -194,6 +195,15 @@ export default function ProfileScreen() {
               <Text style={styles.link}>{check.state === 'checking' ? 'Checking…' : 'Check for updates'}</Text>
             </Pressable>
           </View>
+          {currentNotes() && (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push('/whats-new')}
+              style={styles.checkButton}
+            >
+              <Text style={styles.link}>What’s new in this version</Text>
+            </Pressable>
+          )}
           {check.state === 'error' && (
             <Text style={styles.meta}>Couldn’t reach GitHub. Check your connection and try again.</Text>
           )}
