@@ -23,6 +23,7 @@ import { rise, stagger } from '@/lib/motion';
 import { dayTitle, daySummary, formatScheme } from '@/lib/scheme';
 import { WEEK, today, weekdayLetter, weekdayName } from '@/lib/week';
 import { useProfile, useUnits } from '@/state/profile';
+import { useUpdates } from '@/state/updates';
 import { colors, radius, size, space, type } from '@/theme';
 
 const TAB_EDGES = ['top', 'right', 'left'] as const;
@@ -42,6 +43,7 @@ type TodayData = {
 export default function TodayScreen() {
   const db = useSQLiteContext();
   const { profile } = useProfile();
+  const { available: update } = useUpdates();
   const units = useUnits();
   const [data, setData] = useState<TodayData>();
 
@@ -86,11 +88,13 @@ export default function TodayScreen() {
       <Logo height={size.logoS} />
       <PressableScale
         accessibilityRole="button"
-        accessibilityLabel="Profile"
+        accessibilityLabel={update ? `Profile. ${update.version} is out.` : 'Profile'}
         onPress={() => router.push('/profile')}
         hitSlop={(size.tapTarget - size.avatarS) / 2}
       >
         <Avatar name={profile?.name ?? ''} photoUri={profile?.photoUri ?? null} size={size.avatarS} />
+        {/* A new version is out: the details wait in Profile → Updates. */}
+        {update && <View style={styles.updateDot} />}
       </PressableScale>
     </Animated.View>
   );
@@ -292,6 +296,17 @@ function ResumeButton({ session }: { session: Session }) {
 const styles = StyleSheet.create({
   content: { gap: space[6] },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  updateDot: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: size.updateDot,
+    height: size.updateDot,
+    borderRadius: size.updateDot / 2,
+    backgroundColor: colors.spotterRed,
+    borderWidth: size.ring,
+    borderColor: colors.ground,
+  },
   titleBlock: { gap: space[1] },
   label: { ...type.labelWide, color: colors.inkMuted },
   title: { ...type.titleL, color: colors.ink },

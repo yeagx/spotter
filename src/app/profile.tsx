@@ -20,6 +20,7 @@ import { formatNumber } from '@/lib/units';
 import { APP_VERSION, checkForUpdate, type UpdateResult } from '@/lib/updates';
 import { currentNotes } from '@/lib/whatsNew';
 import { useProfile, useUnits } from '@/state/profile';
+import { useUpdates } from '@/state/updates';
 import { colors, radius, size, space, type } from '@/theme';
 
 const FREE_EXERCISE_DB = 'https://github.com/yuhonas/free-exercise-db';
@@ -33,6 +34,7 @@ export default function ProfileScreen() {
   const [name, setName] = useState(profile?.name ?? '');
   const [splitName, setSplitName] = useState<string | null>(null);
   const [check, setCheck] = useState<Check>({ state: 'idle' });
+  const { available, remember } = useUpdates();
 
   useEffect(() => {
     if (profile) setName(profile.name);
@@ -80,11 +82,21 @@ export default function ProfileScreen() {
   const runCheck = async () => {
     setCheck({ state: 'checking' });
     try {
-      setCheck({ state: 'done', result: await checkForUpdate() });
+      const result = await checkForUpdate();
+      setCheck({ state: 'done', result });
+      remember(result.status === 'available' ? result.release : null); // keeps Today's dot in step
     } catch {
       setCheck({ state: 'error' });
     }
   };
+
+  // A release found by this check, or already found by the daily one in the background.
+  const release =
+    check.state === 'done'
+      ? check.result.status === 'available'
+        ? check.result.release
+        : null
+      : available;
 
   const targets = [
     profile.targetKg ? `${units.show(profile.targetKg)} ${units.units}` : null,
@@ -210,20 +222,11 @@ export default function ProfileScreen() {
           {check.state === 'done' && check.result.status === 'latest' && (
             <Text style={styles.meta}>You’re on the latest version.</Text>
           )}
-          {check.state === 'done' && check.result.status === 'available' && (
+          {release && (
             <View style={styles.release}>
-              <Text style={styles.releaseTitle}>{check.result.release.version} is out.</Text>
-              {check.result.release.notes ? (
-                <Text style={styles.notes}>{check.result.release.notes}</Text>
-              ) : null}
-              <PrimaryButton
-                label={`Download ${check.result.release.version}`}
-                onPress={() => {
-                  if (check.state === 'done' && check.result.status === 'available') {
-                    Linking.openURL(check.result.release.url);
-                  }
-                }}
-              />
+              <Text style={styles.releaseTitle}>{release.version} is out.</Text>
+              {release.notes ? <Text style={styles.notes}>{release.notes}</Text> : null}
+              <PrimaryButton label={`Download ${release.version}`} onPress={() => Linking.openURL(release.url)} />
             </View>
           )}
         </Animated.View>

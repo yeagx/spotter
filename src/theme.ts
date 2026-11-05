@@ -111,6 +111,8 @@ export const size = {
   avatarM: 88,
   avatarL: 112,
   avatarBadge: 32,
+  // The "new version is out" dot on Today's avatar.
+  updateDot: 12,
   // Logo mark heights (width follows the mark's aspect ratio).
   logoXs: 26,
   logoS: 32,

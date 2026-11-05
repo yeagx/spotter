@@ -16,6 +16,7 @@ import { Launch } from '@/components/Launch';
 import { initDatabase } from '@/db/init';
 import { KeyboardProvider } from '@/lib/keyboard';
 import { ProfileProvider, useProfile } from '@/state/profile';
+import { UpdatesProvider } from '@/state/updates';
 import { colors } from '@/theme';
 
 // A widget tap can open a screen deep in the stack (Start, Recap, an exercise) with the
@@ -51,23 +52,25 @@ export default function RootLayout() {
     <KeyboardProvider statusBarTranslucent navigationBarTranslucent preserveEdgeToEdge>
       <SQLiteProvider databaseName="spotter.db" onInit={initDatabase}>
         <ProfileProvider>
-          <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.ground },
-            }}
-          >
-            {/* Full-screen moments fade instead of sliding, and can't be swiped away. */}
-            <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false }} />
-            <Stack.Screen name="start" options={{ animation: 'fade' }} />
-            <Stack.Screen name="workout/[id]" options={{ animation: 'fade', gestureEnabled: false }} />
-            <Stack.Screen name="done/[id]" options={{ animation: 'fade', gestureEnabled: false }} />
-            <Stack.Screen name="recap" options={{ animation: 'slide_from_bottom' }} />
-            <Stack.Screen name="whats-new" options={{ animation: 'slide_from_bottom' }} />
-          </Stack>
-          <LaunchGate />
-          <DialogHost />
+          <UpdatesProvider>
+            <StatusBar style="light" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.ground },
+              }}
+            >
+              {/* Full-screen moments fade instead of sliding, and can't be swiped away. */}
+              <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false }} />
+              <Stack.Screen name="start" options={{ animation: 'fade' }} />
+              <Stack.Screen name="workout/[id]" options={{ animation: 'fade', gestureEnabled: false }} />
+              <Stack.Screen name="done/[id]" options={{ animation: 'fade', gestureEnabled: false }} />
+              <Stack.Screen name="recap" options={{ animation: 'slide_from_bottom' }} />
+              <Stack.Screen name="whats-new" options={{ animation: 'slide_from_bottom' }} />
+            </Stack>
+            <LaunchGate />
+            <DialogHost />
+          </UpdatesProvider>
         </ProfileProvider>
       </SQLiteProvider>
     </KeyboardProvider>
