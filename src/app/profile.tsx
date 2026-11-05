@@ -218,6 +218,21 @@ export default function ProfileScreen() {
           )}
         </Animated.View>
 
+        <Animated.View entering={rise(510)} style={styles.card}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Spot the Spotter, support Spotter"
+            onPress={() => router.push('/support')}
+            style={styles.row}
+          >
+            <View style={styles.rowText}>
+              <Text style={styles.rowLabel}>Spot the Spotter</Text>
+              <Text style={styles.meta}>Support Spotter</Text>
+            </View>
+            <ChevronRightIcon />
+          </Pressable>
+        </Animated.View>
+
         <Animated.View entering={rise(540)} style={styles.about}>
           <Text style={styles.label}>About</Text>
           <Text style={styles.meta}>
@@ -275,6 +290,7 @@ const styles = StyleSheet.create({
   },
   divider: { borderBottomWidth: size.divider, borderBottomColor: colors.hairline },
   rowLabel: { ...type.bodyStrong, color: colors.ink },
+  rowText: { flexShrink: 1, gap: space[1] },
   rowValue: { flexDirection: 'row', alignItems: 'center', gap: space[2], flexShrink: 1 },
   value: { ...type.body, color: colors.inkMuted, flexShrink: 1 },
   updates: { padding: space[4], gap: space[3] },
