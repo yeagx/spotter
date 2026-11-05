@@ -44,7 +44,7 @@ const STEPS: Step[] = [
   },
   {
     title: 'Profile',
-    body: 'Your photo, units, targets and app updates live behind your picture.',
+    body: 'Your photo, units, targets and app updates live behind your picture. So does Spot the Spotter, if Spotter ever helps you.',
     target: { kind: 'avatar' },
     route: '/',
   },
