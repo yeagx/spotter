@@ -7,6 +7,7 @@ export type Goal = 'lean' | 'healthy';
 export type Units = 'kg' | 'lb';
 export type CalorieMode = 'estimate' | 'custom';
 export type Sex = 'male' | 'female';
+export type RestAlert = 'sound' | 'vibrate' | 'off';
 
 export type Profile = {
   id: string;
@@ -19,6 +20,9 @@ export type Profile = {
   targetFat: number | null;
   calorieMode: CalorieMode;
   calorieTarget: number | null; // only used when calorieMode is 'custom'
+  restSetsSec: number | null; // null: each exercise's own rest from the plan
+  restExercisesSec: number | null; // null: same as between sets
+  restAlert: RestAlert; // how the end of a rest reaches you when you're not looking
 };
 
 type ProfileRow = {
@@ -32,6 +36,9 @@ type ProfileRow = {
   target_fat: number | null;
   calorie_mode: CalorieMode;
   calorie_target: number | null;
+  rest_sets_sec: number | null;
+  rest_exercises_sec: number | null;
+  rest_alert: RestAlert;
 };
 
 const toProfile = (r: ProfileRow): Profile => ({
@@ -45,6 +52,9 @@ const toProfile = (r: ProfileRow): Profile => ({
   targetFat: r.target_fat,
   calorieMode: r.calorie_mode,
   calorieTarget: r.calorie_target,
+  restSetsSec: r.rest_sets_sec,
+  restExercisesSec: r.rest_exercises_sec,
+  restAlert: r.rest_alert ?? 'sound',
 });
 
 // One profile per install in v1.
@@ -57,7 +67,7 @@ export async function getProfile(db: SQLiteDatabase): Promise<Profile | null> {
 
 export async function createProfile(
   db: SQLiteDatabase,
-  p: Omit<Profile, 'id' | 'units'>,
+  p: Omit<Profile, 'id' | 'units' | 'restSetsSec' | 'restExercisesSec' | 'restAlert'>,
 ): Promise<void> {
   const now = Date.now();
   await db.runAsync(
@@ -89,6 +99,9 @@ const COLUMNS: Record<keyof Omit<Profile, 'id'>, string> = {
   targetFat: 'target_fat',
   calorieMode: 'calorie_mode',
   calorieTarget: 'calorie_target',
+  restSetsSec: 'rest_sets_sec',
+  restExercisesSec: 'rest_exercises_sec',
+  restAlert: 'rest_alert',
 };
 
 export async function updateProfile(

@@ -10,6 +10,7 @@ import { showDialog } from '@/components/DialogHost';
 import { FadeScrollView } from '@/components/FadeScrollView';
 import { CameraIcon, ChevronRightIcon } from '@/components/Icons';
 import { PressableScale } from '@/components/PressableScale';
+import { RestSettings } from '@/components/RestSettings';
 import { StackScreen } from '@/components/StackScreen';
 import { getSplit } from '@/db/plan';
 import type { Sex } from '@/db/profile';
@@ -191,6 +192,10 @@ export default function ProfileScreen() {
             </Animated.View>
           ))}
         </View>
+
+        <Animated.View entering={rise(460)}>
+          <RestSettings profile={profile} update={update} />
+        </Animated.View>
 
         <Animated.View entering={rise(480)} style={[styles.card, styles.updates]}>
           <View style={styles.updatesHead}>

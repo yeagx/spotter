@@ -153,6 +153,68 @@ export async function deleteSetLog(db: SQLiteDatabase, id: string): Promise<void
   dataChanged();
 }
 
+// How many sets each exercise has in this session, for the ones where the user added or
+// removed a set. Keyed by day_exercise id; exercises left as planned aren't listed.
+export async function getSetCounts(db: SQLiteDatabase, sessionId: string): Promise<Map<string, number>> {
+  const rows = await db.getAllAsync<{ day_exercise_id: string; sets: number }>(
+    'SELECT day_exercise_id, sets FROM session_sets WHERE session_id = ?',
+    sessionId,
+  );
+  return new Map(rows.map((r) => [r.day_exercise_id, r.sets]));
+}
+
+export async function saveSetCount(
+  db: SQLiteDatabase,
+  sessionId: string,
+  dayExerciseId: string,
+  sets: number,
+): Promise<void> {
+  const now = Date.now();
+  await db.runAsync(
+    `INSERT INTO session_sets (session_id, day_exercise_id, sets, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT (session_id, day_exercise_id) DO UPDATE SET
+       sets = excluded.sets,
+       updated_at = excluded.updated_at`,
+    sessionId,
+    dayExerciseId,
+    sets,
+    now,
+    now,
+  );
+}
+
+// Takes one set out of this session: its log (if it was ticked) goes, the sets after it
+// move up one, and the exercise keeps `setsLeft` sets if the session is resumed.
+// The plan itself is never touched.
+export async function removeSet(
+  db: SQLiteDatabase,
+  sessionId: string,
+  item: { dayExerciseId: string; exerciseId: string },
+  setIndex: number,
+  setsLeft: number,
+): Promise<void> {
+  const now = Date.now();
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      'DELETE FROM set_log WHERE session_id = ? AND exercise_id = ? AND set_index = ?',
+      sessionId,
+      item.exerciseId,
+      setIndex,
+    );
+    await db.runAsync(
+      `UPDATE set_log SET set_index = set_index - 1, updated_at = ?
+       WHERE session_id = ? AND exercise_id = ? AND set_index > ?`,
+      now,
+      sessionId,
+      item.exerciseId,
+      setIndex,
+    );
+    await saveSetCount(db, sessionId, item.dayExerciseId, setsLeft);
+  });
+  dataChanged();
+}
+
 // The sets from the most recent other session that included this exercise, in order.
 // Pre-fills Workout and powers "last time".
 export async function lastSets(

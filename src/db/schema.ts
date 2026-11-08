@@ -119,4 +119,23 @@ export const MIGRATIONS: string[] = [
   `
   ALTER TABLE profile ADD COLUMN sex TEXT CHECK (sex IN ('male', 'female'));
   `,
+  // 3: rest timer settings, and how many sets each exercise has in a session once the
+  // user adds or removes one (so a resumed session keeps them).
+  // rest_sets_sec null = each exercise's own rest from the plan.
+  // rest_exercises_sec null = same as between sets.
+  `
+  ALTER TABLE profile ADD COLUMN rest_sets_sec INTEGER CHECK (rest_sets_sec >= 0);
+  ALTER TABLE profile ADD COLUMN rest_exercises_sec INTEGER CHECK (rest_exercises_sec >= 0);
+  ALTER TABLE profile ADD COLUMN rest_alert TEXT NOT NULL DEFAULT 'sound'
+    CHECK (rest_alert IN ('sound', 'vibrate', 'off'));
+
+  CREATE TABLE session_sets (
+    session_id TEXT NOT NULL REFERENCES session (id) ON DELETE CASCADE,
+    day_exercise_id TEXT NOT NULL,
+    sets INTEGER NOT NULL CHECK (sets > 0),
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (session_id, day_exercise_id)
+  );
+  `,
 ];

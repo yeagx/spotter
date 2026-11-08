@@ -28,6 +28,12 @@
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
         "android.permission.RECORD_AUDIO",
         "android.permission.SYSTEM_ALERT_WINDOW"
+      ],
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.USE_EXACT_ALARM",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.VIBRATE"
       ]
     },
     "web": {
@@ -152,7 +158,27 @@
             }
           ]
         }
-      ]
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#E70B16",
+          "sounds": [
+            "./assets/sounds/rest_done.wav"
+          ],
+          "enableRemoteNotifications": false
+        }
+      ],
+      "expo-asset"
     ],
     "scheme": "spotter",
     "backgroundColor": "#0B0B0B",

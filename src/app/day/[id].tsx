@@ -25,6 +25,7 @@ import {
   parseRest,
 } from '@/lib/scheme';
 import { weekdayName } from '@/lib/week';
+import { useProfile } from '@/state/profile';
 import { colors, radius, size, space, type } from '@/theme';
 
 // One exercise in the draft. Reps and rest keep the raw text being typed; it's parsed
@@ -68,6 +69,8 @@ export default function EditDayScreen() {
   const [name, setName] = useState('');
   const [items, setItems] = useState<Item[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
+  // A rest set for every exercise in Profile replaces the rests below; say so.
+  const restOverride = useProfile().profile?.restSetsSec ?? null;
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -150,6 +153,13 @@ export default function EditDayScreen() {
               <Text style={styles.label}>Exercises</Text>
               {items.length > 0 && <Text style={styles.meta}>tap to set sets & reps</Text>}
             </Animated.View>
+
+            {items.length > 0 && restOverride !== null && (
+              <Animated.Text entering={rise(160)} style={styles.meta}>
+                Rest timer in Profile is set to {formatRest(restOverride)} between sets, so it's used instead
+                of the rests here.
+              </Animated.Text>
+            )}
 
             {items.length === 0 && (
               <Animated.Text entering={rise(180)} style={styles.meta}>

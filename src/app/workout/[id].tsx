@@ -5,6 +5,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BackHandler,
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
@@ -28,18 +29,22 @@ import {
   deleteSetLog,
   endSession,
   getSession,
+  getSetCounts,
   lastSets,
   listSetLogs,
+  removeSet,
+  saveSetCount,
   saveSetLog,
   type Lift,
 } from '@/db/sessions';
 import { confirmDestructive, notify } from '@/lib/confirm';
 import { formatClock } from '@/lib/dates';
 import { rise, stagger } from '@/lib/motion';
+import { cancelRestEnd, playRestDone, prepareRestAlerts, scheduleRestEnd } from '@/lib/restAlert';
 import { formatReps, formatRest } from '@/lib/scheme';
 import { parseDecimal, parseWhole } from '@/lib/units';
 import { useContentColumn } from '@/hooks/useContentColumn';
-import { useUnits } from '@/state/profile';
+import { useProfile, useUnits } from '@/state/profile';
 import { colors, layout, radius, size, space, type } from '@/theme';
 
 // One set row. kg and reps hold what's on screen (in the user's units) so typing is
@@ -56,6 +61,9 @@ type Block = {
 const NEW_BEST_MS = 4000;
 const EXTRA_REST_MS = 15000;
 const TICK_MS = 500;
+// Coming back to the app well after rest ran out, the alert has already gone off; the
+// in-app sound would only be a second, late one.
+const LATE_MS = 2000;
 
 const isDone = (b: Block) => b.rows.every((r) => r.logId);
 
@@ -63,7 +71,12 @@ export default function WorkoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const db = useSQLiteContext();
   const units = useUnits();
+  const { profile } = useProfile();
   const { isWide } = useContentColumn();
+  const alertMode = profile?.restAlert ?? 'sound';
+  // Rest from Profile > Rest timer when set, else each exercise's own rest from the plan.
+  const restAfterSet = (b: Block) => profile?.restSetsSec ?? b.item.restSec;
+  const restAfterExercise = (b: Block) => profile?.restExercisesSec ?? restAfterSet(b);
 
   const [state, setState] = useState<'loading' | 'missing' | 'ready'>('loading');
   const [startedAt, setStartedAt] = useState(0);
@@ -83,6 +96,11 @@ export default function WorkoutScreen() {
   const [newBestUntil, setNewBestUntil] = useState(0);
   const [now, setNow] = useState(Date.now());
   const busy = useRef(false);
+  // What the rest alert says ("Leg Press · set 3"), set with each rest.
+  const restNote = useRef('');
+  // True when rest ran out by itself, so its alert (maybe just delivered to a locked
+  // phone) is left alone; a skip takes it back.
+  const restRanOut = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -93,12 +111,14 @@ export default function WorkoutScreen() {
         return;
       }
       const logs = await listSetLogs(db, id);
+      const counts = await getSetCounts(db, id);
       const built: Block[] = [];
       for (const item of day.exercises) {
         const mine = logs.filter((l) => l.exerciseId === item.exercise.id);
         const last = await lastSets(db, item.exercise.id, id);
         const bestBefore = await bestLift(db, item.exercise.id, id);
-        const count = Math.max(item.sets, ...mine.map((l) => l.setIndex + 1));
+        // Sets added or removed earlier in this session stay that way when it's resumed.
+        const count = Math.max(1, counts.get(item.id) ?? item.sets, ...mine.map((l) => l.setIndex + 1));
         const rows: Row[] = Array.from({ length: count }, (_, i) => {
           const log = mine.find((l) => l.setIndex === i);
           if (log) return { kg: units.show(log.kg), reps: String(log.reps), logId: log.id };
@@ -128,17 +148,39 @@ export default function WorkoutScreen() {
     return () => clearInterval(t);
   }, []);
 
-  // Rest is over: a tap on the wrist, and if the rest screen is up, on to the next exercise.
+  // Ask for notification permission as the workout starts, so the first rest can reach a
+  // locked phone. Asked once; Profile > Rest timer > Off skips it.
+  useEffect(() => {
+    if (alertMode !== 'off') prepareRestAlerts();
+  }, [alertMode]);
+
+  // Each rest schedules its alert for the moment it ends (+15 s moves it). Skipping takes
+  // it back, and so does leaving the workout.
+  useEffect(() => {
+    if (restEndsAt !== null) scheduleRestEnd(restEndsAt, alertMode, restNote.current);
+    else if (!restRanOut.current) cancelRestEnd();
+    restRanOut.current = false;
+  }, [restEndsAt, alertMode]);
+  useEffect(
+    () => () => {
+      cancelRestEnd();
+    },
+    [],
+  );
+
+  // Rest is over: a sound and a tap if you're looking, and if the rest screen is up, on
+  // to the next exercise.
   useEffect(() => {
     if (restEndsAt && now >= restEndsAt) {
+      restRanOut.current = true;
       setRestEndsAt(null);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (now - restEndsAt < LATE_MS) playRestDone(alertMode);
       if (restingInto !== null) {
         setIndex(restingInto);
         setRestingInto(null);
       }
     }
-  }, [now, restEndsAt, restingInto]);
+  }, [now, restEndsAt, restingInto, alertMode]);
 
   const skipRest = useCallback(() => {
     setRestEndsAt(null);
@@ -169,6 +211,9 @@ export default function WorkoutScreen() {
   };
 
   const toggle = async (bi: number, ri: number) => {
+    // Logging a set closes the keyboard and lets go of the field, so the number you just
+    // typed doesn't stay highlighted.
+    Keyboard.dismiss();
     if (busy.current) return;
     busy.current = true;
     try {
@@ -208,9 +253,21 @@ export default function WorkoutScreen() {
       const sessionDone = blocksRef.current.every((b, i) =>
         i === bi ? b.rows.every((r, j) => j === ri || r.logId) : isDone(b),
       );
-      if (!sessionDone && block.item.restSec > 0) {
-        setRestEndsAt(Date.now() + block.item.restSec * 1000);
-        setRestTotal(block.item.restSec * 1000);
+      // The exercise's last set gets the rest between exercises; any other set, the rest
+      // between sets.
+      const all = blocksRef.current;
+      const nextSet = all[bi].rows.findIndex((r, j) => j !== ri && !r.logId);
+      const exerciseDone = nextSet === -1;
+      const rest = exerciseDone ? restAfterExercise(block) : restAfterSet(block);
+      if (!sessionDone && rest > 0) {
+        const next = all.map((_, k) => (bi + 1 + k) % all.length).find((k) => k !== bi && !isDone(all[k]));
+        restNote.current = !exerciseDone
+          ? `${block.item.exercise.name} · set ${nextSet + 1}`
+          : next !== undefined
+            ? `Up next: ${all[next].item.exercise.name}.`
+            : '';
+        setRestEndsAt(Date.now() + rest * 1000);
+        setRestTotal(rest * 1000);
       }
     } catch {
       notify('Couldn’t save that set', 'Try ticking it again.');
@@ -240,7 +297,7 @@ export default function WorkoutScreen() {
     });
   };
 
-  const addSet = (bi: number) =>
+  const addSet = (bi: number) => {
     commit(
       blocksRef.current.map((b, i) => {
         if (i !== bi) return b;
@@ -248,8 +305,54 @@ export default function WorkoutScreen() {
         return { ...b, rows: [...b.rows, { kg: last?.kg ?? '', reps: last?.reps ?? '', logId: null }] };
       }),
     );
+    const b = blocksRef.current[bi];
+    saveSetCount(db, id, b.item.id, b.rows.length).catch(() => {});
+  };
+
+  // Any set can come out of today's session, ticked or not: 2 sets instead of the
+  // planned 3, or an extra one added by mistake. The plan itself stays as it is.
+  const askRemoveSet = async (bi: number, ri: number) => {
+    Keyboard.dismiss();
+    const block = blocksRef.current[bi];
+    if (block.rows.length <= 1) {
+      notify('One set stays', 'To skip this exercise, tap another one in the bar at the top.');
+      return;
+    }
+    const row = block.rows[ri];
+    const ok = await confirmDestructive({
+      title: `Remove set ${ri + 1}?`,
+      message: row.logId
+        ? `${row.kg.trim() || '0'} ${units.units} × ${row.reps} comes out of this session. Your plan stays as it is.`
+        : 'Only for this session. Your plan stays as it is.',
+      confirmLabel: 'Remove',
+      cancelLabel: 'Keep',
+    });
+    if (!ok || busy.current) return;
+    busy.current = true;
+    try {
+      // Read again: the rows may have changed while the dialog was up.
+      const current = blocksRef.current[bi];
+      if (ri >= current.rows.length || current.rows.length <= 1) return;
+      await removeSet(
+        db,
+        id,
+        { dayExerciseId: current.item.id, exerciseId: current.item.exercise.id },
+        ri,
+        current.rows.length - 1,
+      );
+      commit(
+        blocksRef.current.map((b, i) => (i === bi ? { ...b, rows: b.rows.filter((_, j) => j !== ri) } : b)),
+      );
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {
+      notify('Couldn’t remove that set', 'Try again.');
+    } finally {
+      busy.current = false;
+    }
+  };
 
   const finish = useCallback(async () => {
+    Keyboard.dismiss();
     const result = await endSession(db, id);
     if (result === 'finished') router.replace({ pathname: '/done/[id]', params: { id } });
     else router.back();
@@ -309,6 +412,7 @@ export default function WorkoutScreen() {
           label: 'Next exercise',
           // Still resting: show the rest screen first; it moves on when rest ends.
           onPress: () => {
+            Keyboard.dismiss();
             if (nextOpen === undefined) return;
             if (resting) setRestingInto(nextOpen);
             else setIndex(nextOpen);
@@ -324,7 +428,7 @@ export default function WorkoutScreen() {
       new best.
     </Animated.Text>
   ) : resting ? (
-    <Pressable accessibilityRole="button" accessibilityLabel="Skip rest" onPress={() => setRestEndsAt(null)} hitSlop={space[3]}>
+    <Pressable accessibilityRole="button" accessibilityLabel="Skip rest" onPress={skipRest} hitSlop={space[3]}>
       <Text style={styles.statusText}>
         {blockDone && <>{lockedIn} · </>}
         <Text style={styles.statusClock}>rest {formatClock(restEndsAt - now)}</Text> · skip
@@ -336,7 +440,7 @@ export default function WorkoutScreen() {
     </Animated.Text>
   ) : (
     <Text style={styles.statusText}>
-      rest {formatRest(block.item.restSec)}
+      rest {formatRest(restAfterSet(block))}
       {block.lastTop
         ? ` · last time ${units.show(block.lastTop.kg)} ${units.units} × ${block.lastTop.reps}`
         : ''}
@@ -373,7 +477,10 @@ export default function WorkoutScreen() {
                   key={b.item.id}
                   accessibilityRole="button"
                   accessibilityLabel={`Go to ${b.item.exercise.name}`}
-                  onPress={() => setIndex(i)}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setIndex(i);
+                  }}
                   style={styles.progressTap}
                 />
               ))}
@@ -439,12 +546,20 @@ export default function WorkoutScreen() {
                       onChange={(change) => updateRow(index, ri, change)}
                       onBlur={() => commitEdit(index, ri)}
                       onToggle={() => toggle(index, ri)}
+                      onRemove={() => askRemoveSet(index, ri)}
                     />
                   ))}
-                  <Pressable accessibilityRole="button" onPress={() => addSet(index)} style={styles.addSet}>
-                    <PlusIcon />
-                    <Text style={styles.addSetLabel}>Add set</Text>
-                  </Pressable>
+                  <View style={styles.setActions}>
+                    <Pressable accessibilityRole="button" onPress={() => addSet(index)} style={styles.addSet}>
+                      <PlusIcon />
+                      <Text style={styles.addSetLabel}>Add set</Text>
+                    </Pressable>
+                    {block.rows.length > 1 && (
+                      <Text style={styles.removeHint} numberOfLines={2}>
+                        tap a set number to remove it
+                      </Text>
+                    )}
+                  </View>
                 </View>
               </FadeScrollView>
 
@@ -527,14 +642,24 @@ type SetRowProps = {
   onChange: (change: Partial<Row>) => void;
   onBlur: () => void;
   onToggle: () => void;
+  onRemove: () => void;
 };
 
-function SetRow({ index, row, delay, isActive, unitLabel, onChange, onBlur, onToggle }: SetRowProps) {
+function SetRow({ index, row, delay, isActive, unitLabel, onChange, onBlur, onToggle, onRemove }: SetRowProps) {
   const done = Boolean(row.logId);
   const lit = done || isActive;
   return (
     <Animated.View entering={rise(delay)} style={[styles.row, isActive && styles.rowActive]}>
-      <Text style={[styles.setNumber, styles.colSet]}>{index + 1}</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Set ${index + 1}`}
+        accessibilityHint="Removes this set from today's session"
+        onPress={onRemove}
+        onLongPress={onRemove}
+        style={({ pressed }) => [styles.colSet, styles.setNumberTap, pressed && styles.setNumberPressed]}
+      >
+        <Text style={styles.setNumber}>{index + 1}</Text>
+      </Pressable>
       <View style={[styles.cell, styles.colNum]}>
         <TextInput
           accessibilityLabel={`Set ${index + 1} ${unitLabel}`}
@@ -661,7 +786,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tickDone: { backgroundColor: colors.spotterRed },
+  setNumberTap: { alignSelf: 'stretch', minHeight: size.tapTarget, justifyContent: 'center' },
+  setNumberPressed: { opacity: 0.5 },
+  setActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[3] },
   addSet: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: size.tapTarget },
+  removeHint: { ...type.caption, color: colors.inkMuted, flexShrink: 1, textAlign: 'right' },
   addSetLabel: { ...type.bodyStrong, color: colors.inkMuted },
   status: { minHeight: type.caption.lineHeight, alignItems: 'center' },
   statusText: { ...type.caption, color: colors.inkMuted, textAlign: 'center' },
