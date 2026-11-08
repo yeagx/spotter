@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -18,6 +18,7 @@ import {
   lastTopKg,
   type Session,
 } from '@/db/sessions';
+import { caughtUpToday, stillOpenDay } from '@/lib/catchUp';
 import { monthName, monthRange, previousMonthKey, startOfDay, startOfWeek } from '@/lib/dates';
 import { rise, stagger } from '@/lib/motion';
 import { dayTitle, daySummary, formatScheme } from '@/lib/scheme';
@@ -109,6 +110,13 @@ export default function TodayScreen() {
 
   const start = (day: SplitDay) => router.push({ pathname: '/start', params: { dayId: day.id } });
 
+  // A day from earlier this week that wasn't trained is still open until the week ends.
+  // On a training day it waits quietly under today's session; on a rest day it becomes
+  // the session. See lib/catchUp.
+  const stillOpen = stillOpenDay(trainingDays, data.doneThisWeek);
+  const madeUp = caughtUpToday(trainingDays, data.doneToday);
+  const dayNumber = (day: SplitDay) => trainingDays.indexOf(day) + 1;
+
   let body;
   if (!split || trainingDays.length === 0) {
     body = (
@@ -124,65 +132,56 @@ export default function TodayScreen() {
       </>
     );
   } else if (todayDay) {
-    const n = trainingDays.indexOf(todayDay) + 1;
     const done = data.doneToday.has(todayDay.id);
     body = (
-      <>
-        <Animated.View entering={rise(90)} style={styles.titleBlock}>
-          <Text style={styles.label}>
-            {weekdayName(weekday)} · Day {n}
-          </Text>
-          <Text style={styles.title}>{dayTitle(todayDay)}</Text>
-          <Text style={styles.meta}>
-            {daySummary(todayDay)}
-            {done ? ' · done today. good session.' : ''}
-          </Text>
-        </Animated.View>
-        <WeekStrip split={split} doneThisWeek={data.doneThisWeek} />
-        {open ? (
-          <ResumeButton session={open} />
-        ) : todayDay.exercises.length ? (
-          <Animated.View entering={rise(300)}>
-            <StartButton label={done ? 'Train again' : 'Start session'} onPress={() => start(todayDay)} />
-          </Animated.View>
-        ) : (
-          <Animated.View entering={rise(300)}>
-            <OutlineButton
-              label="Add exercises"
-              onPress={() => router.push({ pathname: '/day/[id]', params: { id: todayDay.id } })}
-            />
-          </Animated.View>
-        )}
-        {todayDay.exercises.length > 0 && (
-          <Animated.View entering={rise(380)} style={styles.card}>
-            {todayDay.exercises.map((e, i) => {
-              const kg = data.lastKg.get(e.exercise.id);
-              return (
-                <Animated.View key={e.id} entering={rise(stagger(i, 440))}>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() =>
-                      router.push({ pathname: '/exercise/[id]', params: { id: e.exercise.id } })
-                    }
-                    style={[styles.row, i < todayDay.exercises.length - 1 && styles.rowDivider]}
-                  >
-                    <View style={styles.rowText}>
-                      <Text style={styles.rowName}>{e.exercise.name}</Text>
-                      <Text style={styles.meta}>{formatScheme(e.sets, e.repsMin, e.repsMax)}</Text>
-                    </View>
-                    {kg !== undefined && (
-                      <View style={styles.kg}>
-                        <Text style={styles.kgValue}>{units.show(kg)}</Text>
-                        <Text style={styles.meta}>{units.units}</Text>
-                      </View>
-                    )}
-                  </Pressable>
-                </Animated.View>
-              );
-            })}
-          </Animated.View>
-        )}
-      </>
+      <DayBody
+        label={`${weekdayName(weekday)} · Day ${dayNumber(todayDay)}`}
+        day={todayDay}
+        note={done ? 'done today. good session.' : null}
+        split={split}
+        data={data}
+        startLabel={done ? 'Train again' : 'Start session'}
+        onStart={() => start(todayDay)}
+        units={units}
+        extra={
+          !open && stillOpen ? (
+            <Animated.View entering={rise(340)}>
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityHint="Starts it instead of today's session"
+                onPress={() => start(stillOpen)}
+                style={styles.stillOpen}
+              >
+                <View style={styles.rowText}>
+                  <Text style={styles.rowName}>
+                    {weekdayName(stillOpen.weekday!)}'s {dayTitle(stillOpen)}
+                  </Text>
+                  <Text style={styles.meta}>still open · tap to do it instead</Text>
+                </View>
+                <ChevronRightIcon />
+              </PressableScale>
+            </Animated.View>
+          ) : null
+        }
+      />
+    );
+  } else if (stillOpen || madeUp) {
+    // A rest day is free, so the day that slipped by takes its place. Once it's done,
+    // it stays here as done for the rest of the day.
+    const day = (stillOpen ?? madeUp)!;
+    const done = !stillOpen;
+    body = (
+      <DayBody
+        label={`${weekdayName(weekday)} · Rest`}
+        day={day}
+        note={done ? 'done today. good session.' : null}
+        lead={`From ${weekdayName(day.weekday!)} · Day ${dayNumber(day)}`}
+        split={split}
+        data={data}
+        startLabel={done ? null : 'Start session'}
+        onStart={() => start(day)}
+        units={units}
+      />
     );
   } else {
     body = (
@@ -230,6 +229,80 @@ export default function TodayScreen() {
         )}
       </View>
     </Screen>
+  );
+}
+
+type DayBodyProps = {
+  label: string; // "THURSDAY · DAY 5", or "SATURDAY · REST" for a day carried over
+  lead?: string; // where a carried-over day comes from: "From Thursday · Day 5"
+  day: SplitDay;
+  note: string | null; // e.g. "done today. good session."
+  split: Split;
+  data: TodayData;
+  startLabel: string | null; // null: no start button (a made-up day already done)
+  onStart: () => void;
+  units: ReturnType<typeof useUnits>;
+  extra?: ReactNode; // under the button, e.g. a day that's still open
+};
+
+// A training day on Today: its name and summary, the week, the start (or resume) button
+// and its exercises with last weights.
+function DayBody({ label, lead, day, note, split, data, startLabel, onStart, units, extra }: DayBodyProps) {
+  return (
+    <>
+      <Animated.View entering={rise(90)} style={styles.titleBlock}>
+        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.title}>{dayTitle(day)}</Text>
+        <Text style={styles.meta}>
+          {lead ? `${lead} · ` : ''}
+          {daySummary(day)}
+          {note ? ` · ${note}` : ''}
+        </Text>
+      </Animated.View>
+      <WeekStrip split={split} doneThisWeek={data.doneThisWeek} />
+      {data.open ? (
+        <ResumeButton session={data.open} />
+      ) : day.exercises.length === 0 ? (
+        <Animated.View entering={rise(300)}>
+          <OutlineButton
+            label="Add exercises"
+            onPress={() => router.push({ pathname: '/day/[id]', params: { id: day.id } })}
+          />
+        </Animated.View>
+      ) : startLabel ? (
+        <Animated.View entering={rise(300)}>
+          <StartButton label={startLabel} onPress={onStart} />
+        </Animated.View>
+      ) : null}
+      {extra}
+      {day.exercises.length > 0 && (
+        <Animated.View entering={rise(380)} style={styles.card}>
+          {day.exercises.map((e, i) => {
+            const kg = data.lastKg.get(e.exercise.id);
+            return (
+              <Animated.View key={e.id} entering={rise(stagger(i, 440))}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push({ pathname: '/exercise/[id]', params: { id: e.exercise.id } })}
+                  style={[styles.row, i < day.exercises.length - 1 && styles.rowDivider]}
+                >
+                  <View style={styles.rowText}>
+                    <Text style={styles.rowName}>{e.exercise.name}</Text>
+                    <Text style={styles.meta}>{formatScheme(e.sets, e.repsMin, e.repsMax)}</Text>
+                  </View>
+                  {kg !== undefined && (
+                    <View style={styles.kg}>
+                      <Text style={styles.kgValue}>{units.show(kg)}</Text>
+                      <Text style={styles.meta}>{units.units}</Text>
+                    </View>
+                  )}
+                </Pressable>
+              </Animated.View>
+            );
+          })}
+        </Animated.View>
+      )}
+    </>
   );
 }
 
@@ -344,6 +417,16 @@ const styles = StyleSheet.create({
   rowName: { ...type.bodyStrong, color: colors.ink },
   kg: { flexDirection: 'row', alignItems: 'baseline', gap: space[1] },
   kgValue: { ...type.numeralR, color: colors.ink },
+  stillOpen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[3],
+    minHeight: size.buttonPrimary,
+    paddingHorizontal: space[4],
+    paddingVertical: space[2],
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+  },
   recap: {
     flexDirection: 'row',
     alignItems: 'center',

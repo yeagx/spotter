@@ -16,6 +16,7 @@ import {
   type Lift,
   type SessionTop,
 } from '@/db/sessions';
+import { caughtUpToday, stillOpenDay } from '@/lib/catchUp';
 import { formatDay, monthKey, monthName, startOfDay, startOfWeek } from '@/lib/dates';
 import { dayTitle } from '@/lib/scheme';
 import { formatNumber, formatWeight, kgToUnit } from '@/lib/units';
@@ -73,7 +74,11 @@ export async function todayModel(db: SQLiteDatabase): Promise<TodayModel> {
   });
 
   const todayDay = training.find((d) => d.weekday === weekday);
-  if (!todayDay) {
+  // On a rest day, a day from earlier this week that wasn't trained takes its place,
+  // as on Today (lib/catchUp). Once made up, it stays as done for the rest of the day.
+  const carried = todayDay ? null : (stillOpenDay(training, doneWeek, weekday) ?? caughtUpToday(training, doneToday, weekday));
+  const day = todayDay ?? carried;
+  if (!day) {
     const next = nextTrainingDay(training);
     return {
       kind: 'rest',
@@ -84,21 +89,28 @@ export async function todayModel(db: SQLiteDatabase): Promise<TodayModel> {
   }
 
   const open = await getOpenSession(db);
-  const ids = todayDay.exercises.map((e) => e.exercise.id);
-  const last = await lastTopKg(db, ids.slice(0, 3));
-  const state = open ? 'resume' : doneToday.has(todayDay.id) ? 'done' : 'start';
+  const ids = day.exercises.map((e) => e.exercise.id);
+  // A tall widget can list most of a day, so weights for more than the first few.
+  const last = await lastTopKg(db, ids.slice(0, 8));
+  const state = open ? 'resume' : doneToday.has(day.id) ? 'done' : 'start';
+  const n = training.indexOf(day) + 1;
   return {
     kind: 'train',
-    label: `${weekdayName(weekday)} · Day ${training.indexOf(todayDay) + 1}`,
-    title: dayTitle(todayDay),
-    exercises: todayDay.exercises.map((e) => ({
+    label: carried?.weekday ? `From ${weekdayName(carried.weekday)} · Day ${n}` : `${weekdayName(weekday)} · Day ${n}`,
+    title: dayTitle(day),
+    exercises: day.exercises.map((e) => ({
       name: e.exercise.name,
       last: last.has(e.exercise.id) ? weight(last.get(e.exercise.id)!, profile) : null,
     })),
-    sets: todayDay.exercises.reduce((sum, e) => sum + e.sets, 0),
+    sets: day.exercises.reduce((sum, e) => sum + e.sets, 0),
     week: bars,
     state,
-    uri: state === 'resume' && open ? link(`workout/${open.id}`) : state === 'start' ? link('start') : link(),
+    uri:
+      state === 'resume' && open
+        ? link(`workout/${open.id}`)
+        : state === 'start'
+          ? link(carried ? `start?dayId=${carried.id}` : 'start')
+          : link(),
   };
 }
 
@@ -113,10 +125,19 @@ function nextTrainingDay(days: SplitDay[]): SplitDay | null {
 
 // ---------- Start ----------
 
-// Where the Start widget goes: a session in progress first, then today's day.
+// Where the Start widget goes: a session in progress first, then today's day, or on a
+// rest day the day from earlier this week that's still open.
 export async function startUri(db: SQLiteDatabase): Promise<string> {
   const open = await getOpenSession(db);
-  return open ? link(`workout/${open.id}`) : link('start');
+  if (open) return link(`workout/${open.id}`);
+  const split = await getSplit(db);
+  const weekday = today();
+  const training = WEEK.flatMap((w) => split?.days.filter((d) => d.weekday === w) ?? []);
+  if (training.some((d) => d.weekday === weekday)) return link('start');
+  const week = await finishedSessionsBetween(db, startOfWeek(), Date.now() + 1);
+  const done = new Set(week.flatMap((s) => (s.splitDayId ? [s.splitDayId] : [])));
+  const carried = stillOpenDay(training, done, weekday);
+  return link(carried ? `start?dayId=${carried.id}` : 'start');
 }
 
 // ---------- Month ----------

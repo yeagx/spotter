@@ -6,10 +6,11 @@ import Animated from 'react-native-reanimated';
 
 import { PrimaryButton, SmallButton } from '@/components/Buttons';
 import { ExpandChevron } from '@/components/ExpandChevron';
-import { PlusIcon } from '@/components/Icons';
+import { ArrowRightIcon, PlusIcon } from '@/components/Icons';
 import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
 import { addExercisesToDay, getSplit, type Split, type SplitDay } from '@/db/plan';
+import { getOpenSession, type Session } from '@/db/sessions';
 import type { Weekday } from '@/db/types';
 import { openLibrary } from '@/lib/libraryPicker';
 import { rise, settle, stagger } from '@/lib/motion';
@@ -24,12 +25,16 @@ export default function PlanScreen() {
   // undefined while loading, null when no split exists yet.
   const [split, setSplit] = useState<Split | null>();
   const [openDayId, setOpenDayId] = useState<string | null>(null);
+  // A session in progress: starting another day would leave it hanging, so days offer
+  // to resume it instead.
+  const [running, setRunning] = useState<Session | null>(null);
   const firstLoad = useRef(true);
 
   // Reload on every focus: Edit split, Edit day and the library all change the plan.
   useFocusEffect(
     useCallback(() => {
       let active = true;
+      getOpenSession(db).then((o) => active && setRunning(o));
       getSplit(db).then((s) => {
         if (!active) return;
         setSplit(s);
@@ -104,6 +109,12 @@ export default function PlanScreen() {
                 open={open}
                 onToggle={() => setOpenDayId(open ? null : day.id)}
                 onAdd={() => addTo(day)}
+                onStart={() =>
+                  running
+                    ? router.push({ pathname: '/workout/[id]', params: { id: running.id } })
+                    : router.push({ pathname: '/start', params: { dayId: day.id } })
+                }
+                startLabel={running ? 'Resume session in progress' : 'Start this day'}
               />
             );
           })}
@@ -120,9 +131,12 @@ type DayCardProps = {
   open: boolean;
   onToggle: () => void;
   onAdd: () => void;
+  // Any day can be trained on any day: swapped, doubled up, or done on the road.
+  onStart: () => void;
+  startLabel: string;
 };
 
-function DayCard({ day, weekday, delay, open, onToggle, onAdd }: DayCardProps) {
+function DayCard({ day, weekday, delay, open, onToggle, onAdd, onStart, startLabel }: DayCardProps) {
   return (
     <Animated.View entering={rise(delay)} layout={settle} style={styles.card}>
       <Pressable
@@ -159,6 +173,12 @@ function DayCard({ day, weekday, delay, open, onToggle, onAdd }: DayCardProps) {
             <PlusIcon />
             <Text style={styles.addLabel}>Add exercise</Text>
           </PressableScale>
+          {day.exercises.length > 0 && (
+            <PressableScale accessibilityRole="button" onPress={onStart} style={styles.startRow}>
+              <Text style={styles.startLabel}>{startLabel}</Text>
+              <ArrowRightIcon color={colors.ink} />
+            </PressableScale>
+          )}
         </View>
       )}
     </Animated.View>
@@ -240,6 +260,16 @@ const styles = StyleSheet.create({
     borderTopColor: colors.hairline,
   },
   addLabel: { ...type.bodyStrong, color: colors.inkMuted },
+  startRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space[2],
+    minHeight: size.tapTarget,
+    borderTopWidth: size.divider,
+    borderTopColor: colors.hairline,
+  },
+  startLabel: { ...type.bodyStrong, color: colors.ink, flexShrink: 1 },
   restRow: {
     flexDirection: 'row',
     alignItems: 'center',
