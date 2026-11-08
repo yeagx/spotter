@@ -102,15 +102,15 @@ export default function TabsLayout() {
       >
         <Tabs.Screen
           name="index"
-          options={{ title: 'Today', tabBarIcon: ({ color }) => <TodayIcon color={color} /> }}
+          options={{ title: 'Today', tabBarIcon: ({ color, focused }) => <TodayIcon color={color} focused={focused} /> }}
         />
         <Tabs.Screen
           name="plan"
-          options={{ title: 'Plan', tabBarIcon: ({ color }) => <PlanIcon color={color} /> }}
+          options={{ title: 'Plan', tabBarIcon: ({ color, focused }) => <PlanIcon color={color} focused={focused} /> }}
         />
         <Tabs.Screen
           name="body"
-          options={{ title: 'Body', tabBarIcon: ({ color }) => <BodyIcon color={color} /> }}
+          options={{ title: 'Body', tabBarIcon: ({ color, focused }) => <BodyIcon color={color} focused={focused} /> }}
         />
       </Tabs>
       {tour && <Tour tabBarHeight={tabBarHeight} hasSplit={tour.hasSplit} onFinish={endTour} />}

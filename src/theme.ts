@@ -175,4 +175,7 @@ export const motion = {
   beginHintDelayMs: 2800,
   fadeMs: 600,
   barMs: 900,
+  // Tab bar icons: each plays its small move when its tab is chosen.
+  tabIconMs: 700,
+  tabIconScaleFrom: 0.88,
 };
