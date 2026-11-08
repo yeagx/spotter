@@ -10,6 +10,7 @@ export type ExerciseRow = {
   equipment: string;
   cues_json: string;
   media_json: string | null;
+  targets_json: string | null;
   is_custom: number;
 };
 
@@ -21,6 +22,7 @@ export function toExercise(row: ExerciseRow): Exercise {
     equipment: row.equipment as Equipment,
     cues: JSON.parse(row.cues_json),
     media: row.media_json ? JSON.parse(row.media_json) : null,
+    targets: row.targets_json ? JSON.parse(row.targets_json) : null,
     isCustom: row.is_custom === 1,
   };
 }
@@ -59,6 +61,7 @@ export async function createCustomExercise(
     equipment: 'other',
     cues: [],
     media: null,
+    targets: null,
     isCustom: true,
   };
   await db.runAsync(

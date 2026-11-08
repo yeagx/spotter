@@ -14,7 +14,8 @@ export type LibraryExercise = {
 };
 
 // Bump when anything below changes, so existing installs pick up the new rows.
-export const LIBRARY_VERSION = 1;
+// 2: targets (src/db/targets.ts).
+export const LIBRARY_VERSION = 2;
 
 export const LIBRARY: LibraryExercise[] = [
   // Chest

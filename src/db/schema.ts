@@ -138,4 +138,9 @@ export const MIGRATIONS: string[] = [
     PRIMARY KEY (session_id, day_exercise_id)
   );
   `,
+  // 4: what each exercise works, in detail (seeded with the library). Null for custom
+  // exercises, which only know their muscle group.
+  `
+  ALTER TABLE exercise ADD COLUMN targets_json TEXT;
+  `,
 ];

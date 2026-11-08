@@ -8,6 +8,7 @@ import { DemoPlayer } from '@/components/DemoPlayer';
 import { FadeScrollView } from '@/components/FadeScrollView';
 import { SlantBar, SlantStrip } from '@/components/Slant';
 import { StackScreen } from '@/components/StackScreen';
+import { TargetsLine } from '@/components/TargetsLine';
 import { getExercise } from '@/db/exercises';
 import { getSplit, type DayExercise } from '@/db/plan';
 import { beats, bestLift, exerciseHistory, type Lift, type SessionTop } from '@/db/sessions';
@@ -80,6 +81,7 @@ export default function ExerciseScreen() {
       <FadeScrollView contentContainerStyle={styles.content}>
         <Animated.View entering={rise(80)} style={styles.titleBlock}>
           <Text style={styles.title}>{exercise.name}</Text>
+          <TargetsLine exercise={exercise} />
           {planned && (
             <Text style={styles.meta}>
               {planned.sets} sets · {formatReps(planned.repsMin, planned.repsMax)} reps

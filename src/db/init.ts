@@ -3,6 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { exerciseVideos } from './exerciseVideos';
 import { LIBRARY, LIBRARY_VERSION } from './library';
 import { MIGRATIONS } from './schema';
+import { TARGETS } from './targets';
 import type { ExerciseMedia } from './types';
 
 // Passed to <SQLiteProvider onInit>. Runs on every launch before any screen reads data.
@@ -44,14 +45,16 @@ async function seedLibrary(db: SQLiteDatabase) {
       };
       await db.runAsync(
         `INSERT INTO exercise
-           (id, name, muscle, equipment, cues_json, media_json, is_custom, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
+           (id, name, muscle, equipment, cues_json, media_json, targets_json, is_custom,
+            created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
          ON CONFLICT (id) DO UPDATE SET
            name = excluded.name,
            muscle = excluded.muscle,
            equipment = excluded.equipment,
            cues_json = excluded.cues_json,
            media_json = excluded.media_json,
+           targets_json = excluded.targets_json,
            updated_at = excluded.updated_at
          WHERE exercise.is_custom = 0`,
         e.id,
@@ -60,6 +63,7 @@ async function seedLibrary(db: SQLiteDatabase) {
         e.equipment,
         JSON.stringify(e.cues),
         JSON.stringify(media),
+        TARGETS[e.id] ? JSON.stringify(TARGETS[e.id]) : null,
         now,
         now,
       );

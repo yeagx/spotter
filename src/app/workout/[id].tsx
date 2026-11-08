@@ -22,6 +22,7 @@ import { CheckIcon, CloseIcon, PlusIcon } from '@/components/Icons';
 import { PinnedFooter } from '@/components/PinnedFooter';
 import { PressableScale } from '@/components/PressableScale';
 import { SlantStrip } from '@/components/Slant';
+import { TargetsLine } from '@/components/TargetsLine';
 import { getDay, type DayExercise } from '@/db/plan';
 import {
   beats,
@@ -512,6 +513,7 @@ export default function WorkoutScreen() {
                     style={styles.titleBlock}
                   >
                     <Text style={styles.title}>{block.item.exercise.name}</Text>
+                    <TargetsLine exercise={block.item.exercise} />
                     <Text style={styles.meta}>
                       {block.item.sets} sets · {formatReps(block.item.repsMin, block.item.repsMax)} reps
                     </Text>
@@ -608,6 +610,7 @@ function RestScreen({ remaining, total, next, unitLabel, show, onAdd, onSkip }: 
         <View style={styles.upNext}>
           <Text style={styles.label}>Up next</Text>
           <Text style={styles.restNext}>{next.item.exercise.name}</Text>
+          <TargetsLine exercise={next.item.exercise} style={styles.centered} />
           <Text style={styles.meta}>
             {next.item.sets} sets · {formatReps(next.item.repsMin, next.item.repsMax)} reps
             {next.lastTop ? ` · last time ${show(next.lastTop.kg)} ${unitLabel} × ${next.lastTop.reps}` : ''}
@@ -808,6 +811,7 @@ const styles = StyleSheet.create({
   restFill: { height: '100%', backgroundColor: colors.ink },
   upNext: { alignItems: 'center', gap: space[1], marginTop: space[6] },
   restNext: { ...type.title, color: colors.ink, textAlign: 'center' },
+  centered: { textAlign: 'center' },
   restActions: { flexDirection: 'row', gap: space[2] },
   restButton: {
     height: size.buttonPrimary,

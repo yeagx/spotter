@@ -11,10 +11,11 @@ import { ExerciseThumb } from '@/components/ExerciseThumb';
 import { FadeScrollView } from '@/components/FadeScrollView';
 import { CheckIcon, SearchIcon } from '@/components/Icons';
 import { StackScreen } from '@/components/StackScreen';
+import { TargetsLine } from '@/components/TargetsLine';
 import { TextField } from '@/components/TextField';
 import { createCustomExercise, listExercises } from '@/db/exercises';
 import { MUSCLES, type Exercise, type Muscle } from '@/db/types';
-import { exerciseMeta, muscleLabel } from '@/lib/labels';
+import { equipmentLabel, muscleLabel, searchText } from '@/lib/labels';
 import { currentLibraryRequest } from '@/lib/libraryPicker';
 import { rise, settle } from '@/lib/motion';
 import { colors, radius, size, space, type } from '@/theme';
@@ -53,7 +54,8 @@ export default function LibraryScreen() {
 
   const shown = useMemo(() => {
     const q = normalize(query);
-    return all.filter((e) => (!muscle || e.muscle === muscle) && normalize(e.name).includes(q));
+    // Search covers what an exercise works too, so "quads" finds Leg Extension.
+    return all.filter((e) => (!muscle || e.muscle === muscle) && normalize(searchText(e)).includes(q));
   }, [all, query, muscle]);
 
   if (!request) return null;
@@ -146,8 +148,9 @@ export default function LibraryScreen() {
                   <ExerciseThumb media={e.media} />
                   <View style={styles.rowText}>
                     <Text style={[styles.rowName, already && styles.muted]}>{e.name}</Text>
+                    <TargetsLine exercise={e} />
                     <Text style={styles.meta}>
-                      {already ? `Already in ${request.dayLabel}` : exerciseMeta(e)}
+                      {already ? `Already in ${request.dayLabel}` : equipmentLabel(e)}
                     </Text>
                   </View>
                   <View style={[styles.box, on && styles.boxOn]}>

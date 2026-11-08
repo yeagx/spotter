@@ -21,6 +21,9 @@ export type Equipment = 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweig
 // never at a file path, so swapping frames for a filmed clip later is a data change only.
 export type ExerciseMedia = { type: 'frames'; key: string } | { type: 'video'; key: string };
 
+// What an exercise works. primary: what it's for; secondary: what helps or holds steady.
+export type Targets = { primary: string[]; secondary: string[] };
+
 export type Exercise = {
   id: string;
   name: string;
@@ -28,5 +31,6 @@ export type Exercise = {
   equipment: Equipment;
   cues: string[];
   media: ExerciseMedia | null; // null for custom exercises: they have no demo
+  targets: Targets | null; // null for custom exercises: only their muscle group is known
   isCustom: boolean;
 };
