@@ -90,7 +90,8 @@
               "targetCellWidth": 4,
               "targetCellHeight": 2,
               "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 1800000
+              "updatePeriodMillis": 1800000,
+              "previewImage": "./assets/widgets/today.png"
             },
             {
               "name": "Month",
@@ -101,7 +102,8 @@
               "targetCellWidth": 4,
               "targetCellHeight": 2,
               "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 3600000
+              "updatePeriodMillis": 3600000,
+              "previewImage": "./assets/widgets/month.png"
             },
             {
               "name": "BestLift",
@@ -112,7 +114,8 @@
               "targetCellWidth": 2,
               "targetCellHeight": 2,
               "resizeMode": "horizontal|vertical",
-              "widgetFeatures": "reconfigurable"
+              "widgetFeatures": "reconfigurable",
+              "previewImage": "./assets/widgets/bestlift.png"
             },
             {
               "name": "Body",
@@ -122,7 +125,8 @@
               "minHeight": "110dp",
               "targetCellWidth": 2,
               "targetCellHeight": 2,
-              "resizeMode": "horizontal|vertical"
+              "resizeMode": "horizontal|vertical",
+              "previewImage": "./assets/widgets/body.png"
             },
             {
               "name": "Start",
@@ -132,7 +136,8 @@
               "minHeight": "40dp",
               "targetCellWidth": 1,
               "targetCellHeight": 1,
-              "resizeMode": "horizontal|vertical"
+              "resizeMode": "horizontal|vertical",
+              "previewImage": "./assets/widgets/start.png"
             },
             {
               "name": "Me",
@@ -143,7 +148,8 @@
               "targetCellWidth": 4,
               "targetCellHeight": 2,
               "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 3600000
+              "updatePeriodMillis": 3600000,
+              "previewImage": "./assets/widgets/me.png"
             },
             {
               "name": "MeSmall",
@@ -154,7 +160,8 @@
               "targetCellWidth": 2,
               "targetCellHeight": 2,
               "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 3600000
+              "updatePeriodMillis": 3600000,
+              "previewImage": "./assets/widgets/mesmall.png"
             }
           ]
         }

@@ -11,7 +11,7 @@ import { colors, fonts, size, space, type } from '@/theme';
 
 import { link, type MeModel } from './data';
 import { ringSvg } from './svg';
-import { Card, Line, Row, SetUp, Spacer, lineH, padFor, rowsThatFit, type Box } from './ui';
+import { Card, Line, Row, SetUp, Spacer, lineH, padFor, rowsThatFit, scaleFor, type Box } from './ui';
 
 // Me: the profile photo (or initial) inside a red ring that fills with this month's
 // sessions done / planned. The wide one adds name, goal · split and three stats; the
@@ -34,15 +34,16 @@ const label = (m: Me) =>
 
 function Wide({ m, b }: { m: Me; b: Box }) {
   const pad = padFor(b);
-  const countH = lineH(type.numeralCaption, b);
-  const d = Math.min(size.avatarM, b.h - pad * 2 - countH - space[1]);
+  const s = scaleFor(b);
+  const countH = lineH(s.num, b);
+  const d = Math.min(s.roomy ? size.avatarL : size.avatarM, b.h - pad * 2 - countH - space[1]);
 
   const rows: [string, string][] = [];
   if (m.best) rows.push(['Best', m.best]);
   if (m.weight) rows.push(['Weight', m.weight]);
   rows.push(['New bests', String(m.newBests)]);
-  const top = lineH(type.heading, b) + lineH(type.caption, b) + space[2];
-  const slots = rowsThatFit(b.h - pad * 2 - top, lineH(type.caption, b), space[1]);
+  const top = lineH(s.title, b) + lineH(s.row, b) + space[2];
+  const slots = rowsThatFit(b.h - pad * 2 - top, lineH(s.row, b), space[1]);
 
   return (
     <Card uri={link('profile')} label={label(m)} pad={pad}>
@@ -52,17 +53,17 @@ function Wide({ m, b }: { m: Me; b: Box }) {
           <TextWidget
             text={m.planned ? `${m.done}/${m.planned}` : String(m.done)}
             maxLines={1}
-            style={{ fontFamily: type.numeralCaption.fontFamily, fontSize: type.numeralCaption.fontSize, color: colors.ink }}
+            style={{ fontFamily: s.num.fontFamily, fontSize: s.num.fontSize, color: colors.ink }}
           />
         </FlexWidget>
         <FlexWidget style={{ flex: 1, height: 'match_parent', flexDirection: 'column' }}>
-          <Line text={m.name} style={type.heading} />
-          {m.subtitle ? <Line text={m.subtitle} style={type.caption} color={colors.inkMuted} /> : null}
+          <Line text={m.name} style={s.title} />
+          {m.subtitle ? <Line text={m.subtitle} style={s.row} color={colors.inkMuted} /> : null}
           <Spacer />
           {slots > 0 && (
             <FlexWidget style={{ width: 'match_parent', flexDirection: 'column', flexGap: space[1] }}>
               {rows.slice(0, slots).map(([k, v]) => (
-                <Row key={k} label={k} value={v} b={b} />
+                <Row key={k} label={k} value={v} s={s} />
               ))}
             </FlexWidget>
           )}
