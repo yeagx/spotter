@@ -37,12 +37,16 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 - A named split (Upper / Lower, Full Body, whatever you run) pinned to the days you train.
 - Each day holds exercises with sets, a rep range like `8–12`, and rest time.
 - 56 curated exercises to pick from, with search, muscle filters and multi-select. Custom exercises when something's missing.
+- Every exercise says exactly what it works ("Upper chest · also Front delts, Triceps"), and search finds muscles too.
+- Plan days are pinned to weekdays, but life isn't: a day that slipped by stays open until the week ends. On a rest day it becomes your session; on a training day it waits quietly under today's. Any day can also be started from Plan.
 
 **Train**
 - Today opens on what's planned, with the weight you lifted last time.
 - A short "locked in." moment when a session starts, then one exercise at a time.
 - Sets are pre-filled from your last session. Tick to log, with a soft haptic tap.
-- A rest timer between sets, and a full-screen countdown between exercises (+15 s or skip).
+- A rest timer between sets, and a full-screen countdown between exercises (+15 s or skip). Both lengths can be set in Profile, or follow each exercise's rest from the plan.
+- When rest ends with the phone locked or in a pocket, a short sound and two buzzes tell you (or just the buzz, or nothing).
+- Any set can be removed from today's session, ticked or not; the plan stays as it is.
 - New bests are called out as they happen. Sessions survive the app being closed and can be resumed.
 
 **See how it's done**
@@ -65,7 +69,7 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 - **Best lift**: one lift you pick, its best set and its last six sessions.
 - **Body**: your last check-in against your target. **Start**: one tap into today's session.
 - **Me**: your photo in a ring that fills with this month's sessions.
-- Widgets refresh as you train, and drop rows rather than squeeze when resized.
+- Widgets refresh as you train and fill the space they're given: rows drop when short, type steps up when tall. The widget picker shows a real preview of each.
 
 **Stays current**
 - Once a day Spotter quietly asks GitHub for the latest release. When there's a new one, a small dot appears on your picture, and Profile → Updates links straight to the new APK. *Check for updates* is there too, any time.
@@ -104,6 +108,7 @@ The full brand book, tokens and approved mockups live in [`design/`](design/).
 | Keyboard | `react-native-keyboard-controller`, so pinned buttons ride the keyboard frame by frame |
 | Media | Demo player that's source-agnostic: photo frames today, filmed `expo-video` loops later with no UI change |
 | Sharing | `react-native-view-shot` · `expo-sharing` · `expo-media-library` · `expo-clipboard` |
+| Alerts | `expo-notifications` (alarm-clock delivery, so a rest alert lands on time with the screen off) · `expo-audio` |
 | Widgets | [`react-native-android-widget`](https://github.com/sAleksovski/react-native-android-widget), drawn from the same SQLite data as the screens |
 | Builds | [EAS Build](https://docs.expo.dev/build/introduction/) → APK attached to GitHub Releases |
 

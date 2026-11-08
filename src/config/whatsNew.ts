@@ -10,6 +10,31 @@ export type WhatsNewEntry = { version: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: '1.3.0',
+    items: [
+      {
+        title: 'Rest that finds you',
+        line: 'When a rest ends with your phone locked or in a pocket, a short sound and a buzz tell you. Choose sound, vibrate or off in Profile.',
+      },
+      {
+        title: 'Your rest, your call',
+        line: 'Set the rest between sets and between exercises in Profile → Rest timer.',
+      },
+      {
+        title: 'A day that slipped by',
+        line: 'Didn’t make it in? That day stays open until the week ends. On a rest day it becomes your session; on a training day it waits under today’s.',
+      },
+      {
+        title: 'What it works',
+        line: 'Every exercise shows exactly what it targets, when you pick it and while you train. Search finds muscles too: try "quads".',
+      },
+      {
+        title: 'Fewer sets is fine',
+        line: 'Tap a set number in a workout to remove that set, ticked or not. Your plan stays as it is.',
+      },
+    ],
+  },
+  {
     version: '1.2.0',
     items: [
       {
