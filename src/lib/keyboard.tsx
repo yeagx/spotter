@@ -4,4 +4,5 @@ export {
   KeyboardAwareScrollView,
   KeyboardProvider,
   KeyboardStickyView,
+  useReanimatedKeyboardAnimation,
 } from 'react-native-keyboard-controller';
