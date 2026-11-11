@@ -61,4 +61,11 @@ ${entries.join('\n')}
 };
 `,
 );
+// The folder is wiped above, so the credit line is written back every run.
+writeFileSync(
+  join(outDir, 'CREDITS.md'),
+  `Exercise photos from free-exercise-db (https://github.com/yuhonas/free-exercise-db),
+released under the Unlicense (public domain). Copied by scripts/import-exercises.mjs.
+`,
+);
 console.log(`Imported ${entries.length} exercises into assets/exercises.`);

@@ -30,6 +30,102 @@ export const exerciseFrames: Record<string, number[]> = {
     require('../../assets/exercises/push-up/0.jpg'),
     require('../../assets/exercises/push-up/1.jpg'),
   ],
+  'decline-barbell-press': [
+    require('../../assets/exercises/decline-barbell-press/0.jpg'),
+    require('../../assets/exercises/decline-barbell-press/1.jpg'),
+  ],
+  'decline-dumbbell-press': [
+    require('../../assets/exercises/decline-dumbbell-press/0.jpg'),
+    require('../../assets/exercises/decline-dumbbell-press/1.jpg'),
+  ],
+  'smith-bench-press': [
+    require('../../assets/exercises/smith-bench-press/0.jpg'),
+    require('../../assets/exercises/smith-bench-press/1.jpg'),
+  ],
+  'smith-incline-press': [
+    require('../../assets/exercises/smith-incline-press/0.jpg'),
+    require('../../assets/exercises/smith-incline-press/1.jpg'),
+  ],
+  'incline-machine-press': [
+    require('../../assets/exercises/incline-machine-press/0.jpg'),
+    require('../../assets/exercises/incline-machine-press/1.jpg'),
+  ],
+  'dumbbell-fly': [
+    require('../../assets/exercises/dumbbell-fly/0.jpg'),
+    require('../../assets/exercises/dumbbell-fly/1.jpg'),
+  ],
+  'incline-dumbbell-fly': [
+    require('../../assets/exercises/incline-dumbbell-fly/0.jpg'),
+    require('../../assets/exercises/incline-dumbbell-fly/1.jpg'),
+  ],
+  'pec-deck': [
+    require('../../assets/exercises/pec-deck/0.jpg'),
+    require('../../assets/exercises/pec-deck/1.jpg'),
+  ],
+  'low-cable-fly': [
+    require('../../assets/exercises/low-cable-fly/0.jpg'),
+    require('../../assets/exercises/low-cable-fly/1.jpg'),
+  ],
+  'chest-dip': [
+    require('../../assets/exercises/chest-dip/0.jpg'),
+    require('../../assets/exercises/chest-dip/1.jpg'),
+  ],
+  'dumbbell-pullover': [
+    require('../../assets/exercises/dumbbell-pullover/0.jpg'),
+    require('../../assets/exercises/dumbbell-pullover/1.jpg'),
+  ],
+  'deadlift': [
+    require('../../assets/exercises/deadlift/0.jpg'),
+    require('../../assets/exercises/deadlift/1.jpg'),
+  ],
+  'rack-pull': [
+    require('../../assets/exercises/rack-pull/0.jpg'),
+    require('../../assets/exercises/rack-pull/1.jpg'),
+  ],
+  'chin-up': [
+    require('../../assets/exercises/chin-up/0.jpg'),
+    require('../../assets/exercises/chin-up/1.jpg'),
+  ],
+  'inverted-row': [
+    require('../../assets/exercises/inverted-row/0.jpg'),
+    require('../../assets/exercises/inverted-row/1.jpg'),
+  ],
+  't-bar-row': [
+    require('../../assets/exercises/t-bar-row/0.jpg'),
+    require('../../assets/exercises/t-bar-row/1.jpg'),
+  ],
+  'chest-supported-row': [
+    require('../../assets/exercises/chest-supported-row/0.jpg'),
+    require('../../assets/exercises/chest-supported-row/1.jpg'),
+  ],
+  'machine-high-row': [
+    require('../../assets/exercises/machine-high-row/0.jpg'),
+    require('../../assets/exercises/machine-high-row/1.jpg'),
+  ],
+  'single-arm-cable-row': [
+    require('../../assets/exercises/single-arm-cable-row/0.jpg'),
+    require('../../assets/exercises/single-arm-cable-row/1.jpg'),
+  ],
+  'neutral-grip-lat-pulldown': [
+    require('../../assets/exercises/neutral-grip-lat-pulldown/0.jpg'),
+    require('../../assets/exercises/neutral-grip-lat-pulldown/1.jpg'),
+  ],
+  'reverse-grip-lat-pulldown': [
+    require('../../assets/exercises/reverse-grip-lat-pulldown/0.jpg'),
+    require('../../assets/exercises/reverse-grip-lat-pulldown/1.jpg'),
+  ],
+  'single-arm-lat-pulldown': [
+    require('../../assets/exercises/single-arm-lat-pulldown/0.jpg'),
+    require('../../assets/exercises/single-arm-lat-pulldown/1.jpg'),
+  ],
+  'barbell-shrug': [
+    require('../../assets/exercises/barbell-shrug/0.jpg'),
+    require('../../assets/exercises/barbell-shrug/1.jpg'),
+  ],
+  'dumbbell-shrug': [
+    require('../../assets/exercises/dumbbell-shrug/0.jpg'),
+    require('../../assets/exercises/dumbbell-shrug/1.jpg'),
+  ],
   'lat-pulldown': [
     require('../../assets/exercises/lat-pulldown/0.jpg'),
     require('../../assets/exercises/lat-pulldown/1.jpg'),
@@ -90,6 +186,70 @@ export const exerciseFrames: Record<string, number[]> = {
     require('../../assets/exercises/face-pull/0.jpg'),
     require('../../assets/exercises/face-pull/1.jpg'),
   ],
+  'arnold-press': [
+    require('../../assets/exercises/arnold-press/0.jpg'),
+    require('../../assets/exercises/arnold-press/1.jpg'),
+  ],
+  'machine-shoulder-press': [
+    require('../../assets/exercises/machine-shoulder-press/0.jpg'),
+    require('../../assets/exercises/machine-shoulder-press/1.jpg'),
+  ],
+  'smith-shoulder-press': [
+    require('../../assets/exercises/smith-shoulder-press/0.jpg'),
+    require('../../assets/exercises/smith-shoulder-press/1.jpg'),
+  ],
+  'front-raise': [
+    require('../../assets/exercises/front-raise/0.jpg'),
+    require('../../assets/exercises/front-raise/1.jpg'),
+  ],
+  'cable-front-raise': [
+    require('../../assets/exercises/cable-front-raise/0.jpg'),
+    require('../../assets/exercises/cable-front-raise/1.jpg'),
+  ],
+  'reverse-pec-deck': [
+    require('../../assets/exercises/reverse-pec-deck/0.jpg'),
+    require('../../assets/exercises/reverse-pec-deck/1.jpg'),
+  ],
+  'cable-rear-delt-fly': [
+    require('../../assets/exercises/cable-rear-delt-fly/0.jpg'),
+    require('../../assets/exercises/cable-rear-delt-fly/1.jpg'),
+  ],
+  'upright-row': [
+    require('../../assets/exercises/upright-row/0.jpg'),
+    require('../../assets/exercises/upright-row/1.jpg'),
+  ],
+  'ez-bar-curl': [
+    require('../../assets/exercises/ez-bar-curl/0.jpg'),
+    require('../../assets/exercises/ez-bar-curl/1.jpg'),
+  ],
+  'preacher-curl': [
+    require('../../assets/exercises/preacher-curl/0.jpg'),
+    require('../../assets/exercises/preacher-curl/1.jpg'),
+  ],
+  'machine-preacher-curl': [
+    require('../../assets/exercises/machine-preacher-curl/0.jpg'),
+    require('../../assets/exercises/machine-preacher-curl/1.jpg'),
+  ],
+  'machine-curl': [
+    require('../../assets/exercises/machine-curl/0.jpg'),
+    require('../../assets/exercises/machine-curl/1.jpg'),
+  ],
+  'spider-curl': [
+    require('../../assets/exercises/spider-curl/0.jpg'),
+    require('../../assets/exercises/spider-curl/1.jpg'),
+  ],
+  'concentration-curl': [
+    require('../../assets/exercises/concentration-curl/0.jpg'),
+    require('../../assets/exercises/concentration-curl/1.jpg'),
+  ],
+  'rope-hammer-curl': [
+    require('../../assets/exercises/rope-hammer-curl/0.jpg'),
+    require('../../assets/exercises/rope-hammer-curl/1.jpg'),
+  ],
+  'reverse-curl': [
+    require('../../assets/exercises/reverse-curl/0.jpg'),
+    require('../../assets/exercises/reverse-curl/1.jpg'),
+  ],
   'barbell-curl': [
     require('../../assets/exercises/barbell-curl/0.jpg'),
     require('../../assets/exercises/barbell-curl/1.jpg'),
@@ -129,6 +289,98 @@ export const exerciseFrames: Record<string, number[]> = {
   'dip': [
     require('../../assets/exercises/dip/0.jpg'),
     require('../../assets/exercises/dip/1.jpg'),
+  ],
+  'overhead-cable-extension': [
+    require('../../assets/exercises/overhead-cable-extension/0.jpg'),
+    require('../../assets/exercises/overhead-cable-extension/1.jpg'),
+  ],
+  'single-arm-pushdown': [
+    require('../../assets/exercises/single-arm-pushdown/0.jpg'),
+    require('../../assets/exercises/single-arm-pushdown/1.jpg'),
+  ],
+  'close-grip-bench-press': [
+    require('../../assets/exercises/close-grip-bench-press/0.jpg'),
+    require('../../assets/exercises/close-grip-bench-press/1.jpg'),
+  ],
+  'dumbbell-skull-crusher': [
+    require('../../assets/exercises/dumbbell-skull-crusher/0.jpg'),
+    require('../../assets/exercises/dumbbell-skull-crusher/1.jpg'),
+  ],
+  'single-arm-overhead-extension': [
+    require('../../assets/exercises/single-arm-overhead-extension/0.jpg'),
+    require('../../assets/exercises/single-arm-overhead-extension/1.jpg'),
+  ],
+  'dumbbell-kickback': [
+    require('../../assets/exercises/dumbbell-kickback/0.jpg'),
+    require('../../assets/exercises/dumbbell-kickback/1.jpg'),
+  ],
+  'machine-triceps-extension': [
+    require('../../assets/exercises/machine-triceps-extension/0.jpg'),
+    require('../../assets/exercises/machine-triceps-extension/1.jpg'),
+  ],
+  'machine-dip': [
+    require('../../assets/exercises/machine-dip/0.jpg'),
+    require('../../assets/exercises/machine-dip/1.jpg'),
+  ],
+  'bench-dip': [
+    require('../../assets/exercises/bench-dip/0.jpg'),
+    require('../../assets/exercises/bench-dip/1.jpg'),
+  ],
+  'front-squat': [
+    require('../../assets/exercises/front-squat/0.jpg'),
+    require('../../assets/exercises/front-squat/1.jpg'),
+  ],
+  'smith-squat': [
+    require('../../assets/exercises/smith-squat/0.jpg'),
+    require('../../assets/exercises/smith-squat/1.jpg'),
+  ],
+  'bodyweight-squat': [
+    require('../../assets/exercises/bodyweight-squat/0.jpg'),
+    require('../../assets/exercises/bodyweight-squat/1.jpg'),
+  ],
+  'dumbbell-lunge': [
+    require('../../assets/exercises/dumbbell-lunge/0.jpg'),
+    require('../../assets/exercises/dumbbell-lunge/1.jpg'),
+  ],
+  'reverse-lunge': [
+    require('../../assets/exercises/reverse-lunge/0.jpg'),
+    require('../../assets/exercises/reverse-lunge/1.jpg'),
+  ],
+  'step-up': [
+    require('../../assets/exercises/step-up/0.jpg'),
+    require('../../assets/exercises/step-up/1.jpg'),
+  ],
+  'sumo-deadlift': [
+    require('../../assets/exercises/sumo-deadlift/0.jpg'),
+    require('../../assets/exercises/sumo-deadlift/1.jpg'),
+  ],
+  'dumbbell-romanian-deadlift': [
+    require('../../assets/exercises/dumbbell-romanian-deadlift/0.jpg'),
+    require('../../assets/exercises/dumbbell-romanian-deadlift/1.jpg'),
+  ],
+  'good-morning': [
+    require('../../assets/exercises/good-morning/0.jpg'),
+    require('../../assets/exercises/good-morning/1.jpg'),
+  ],
+  'glute-bridge': [
+    require('../../assets/exercises/glute-bridge/0.jpg'),
+    require('../../assets/exercises/glute-bridge/1.jpg'),
+  ],
+  'cable-pull-through': [
+    require('../../assets/exercises/cable-pull-through/0.jpg'),
+    require('../../assets/exercises/cable-pull-through/1.jpg'),
+  ],
+  'cable-kickback': [
+    require('../../assets/exercises/cable-kickback/0.jpg'),
+    require('../../assets/exercises/cable-kickback/1.jpg'),
+  ],
+  'hip-abduction': [
+    require('../../assets/exercises/hip-abduction/0.jpg'),
+    require('../../assets/exercises/hip-abduction/1.jpg'),
+  ],
+  'hip-adduction': [
+    require('../../assets/exercises/hip-adduction/0.jpg'),
+    require('../../assets/exercises/hip-adduction/1.jpg'),
   ],
   'leg-press': [
     require('../../assets/exercises/leg-press/0.jpg'),
@@ -182,6 +434,58 @@ export const exerciseFrames: Record<string, number[]> = {
     require('../../assets/exercises/seated-calf-raise/0.jpg'),
     require('../../assets/exercises/seated-calf-raise/1.jpg'),
   ],
+  'leg-press-calf-raise': [
+    require('../../assets/exercises/leg-press-calf-raise/0.jpg'),
+    require('../../assets/exercises/leg-press-calf-raise/1.jpg'),
+  ],
+  'dumbbell-calf-raise': [
+    require('../../assets/exercises/dumbbell-calf-raise/0.jpg'),
+    require('../../assets/exercises/dumbbell-calf-raise/1.jpg'),
+  ],
+  'crunch': [
+    require('../../assets/exercises/crunch/0.jpg'),
+    require('../../assets/exercises/crunch/1.jpg'),
+  ],
+  'decline-crunch': [
+    require('../../assets/exercises/decline-crunch/0.jpg'),
+    require('../../assets/exercises/decline-crunch/1.jpg'),
+  ],
+  'machine-crunch': [
+    require('../../assets/exercises/machine-crunch/0.jpg'),
+    require('../../assets/exercises/machine-crunch/1.jpg'),
+  ],
+  'reverse-crunch': [
+    require('../../assets/exercises/reverse-crunch/0.jpg'),
+    require('../../assets/exercises/reverse-crunch/1.jpg'),
+  ],
+  'bicycle-crunch': [
+    require('../../assets/exercises/bicycle-crunch/0.jpg'),
+    require('../../assets/exercises/bicycle-crunch/1.jpg'),
+  ],
+  'sit-up': [
+    require('../../assets/exercises/sit-up/0.jpg'),
+    require('../../assets/exercises/sit-up/1.jpg'),
+  ],
+  'lying-leg-raise': [
+    require('../../assets/exercises/lying-leg-raise/0.jpg'),
+    require('../../assets/exercises/lying-leg-raise/1.jpg'),
+  ],
+  'knee-raise': [
+    require('../../assets/exercises/knee-raise/0.jpg'),
+    require('../../assets/exercises/knee-raise/1.jpg'),
+  ],
+  'side-plank': [
+    require('../../assets/exercises/side-plank/0.jpg'),
+    require('../../assets/exercises/side-plank/1.jpg'),
+  ],
+  'cable-woodchop': [
+    require('../../assets/exercises/cable-woodchop/0.jpg'),
+    require('../../assets/exercises/cable-woodchop/1.jpg'),
+  ],
+  'mountain-climber': [
+    require('../../assets/exercises/mountain-climber/0.jpg'),
+    require('../../assets/exercises/mountain-climber/1.jpg'),
+  ],
   'plank': [
     require('../../assets/exercises/plank/0.jpg'),
     require('../../assets/exercises/plank/1.jpg'),
@@ -221,5 +525,17 @@ export const exerciseFrames: Record<string, number[]> = {
   'rowing-machine': [
     require('../../assets/exercises/rowing-machine/0.jpg'),
     require('../../assets/exercises/rowing-machine/1.jpg'),
+  ],
+  'elliptical': [
+    require('../../assets/exercises/elliptical/0.jpg'),
+    require('../../assets/exercises/elliptical/1.jpg'),
+  ],
+  'stair-climber': [
+    require('../../assets/exercises/stair-climber/0.jpg'),
+    require('../../assets/exercises/stair-climber/1.jpg'),
+  ],
+  'jump-rope': [
+    require('../../assets/exercises/jump-rope/0.jpg'),
+    require('../../assets/exercises/jump-rope/1.jpg'),
   ],
 };
