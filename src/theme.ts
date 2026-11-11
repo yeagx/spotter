@@ -52,8 +52,11 @@ export const type = {
   },
   // Text (sans family)
   // Split name on the Plan tab, from design/screens/Plan.dc.html.
-  titleL: { fontFamily: fonts.sans800, fontSize: 32, lineHeight: 38, letterSpacing: -0.3 },
-  title: { fontFamily: fonts.sans800, fontSize: 24, lineHeight: 30 },
+  // Line heights here are a little looser than the mockups' (38 and 30). Manrope is a
+  // tall face (1.37 × its size), and Android trims a line that's tighter than the font
+  // from both ends, which cut the tails off g, y and p in ExtraBold titles.
+  titleL: { fontFamily: fonts.sans800, fontSize: 32, lineHeight: 44, letterSpacing: -0.3 },
+  title: { fontFamily: fonts.sans800, fontSize: 24, lineHeight: 33 },
   heading: { fontFamily: fonts.sans700, fontSize: 17, lineHeight: 24 },
   body: { fontFamily: fonts.sans500, fontSize: 15, lineHeight: 22 },
   caption: { fontFamily: fonts.sans500, fontSize: 13, lineHeight: 18 },
@@ -161,6 +164,8 @@ export const motion = {
   expandMs: 500,
   // Demo player: each frame holds this long (doubled at half speed).
   frameMs: 700,
+  // ...and dissolves into the next over this long.
+  frameFadeMs: 320,
   // Launch: logo in from blur, short hold, then out.
   launchInMs: 700,
   launchOutMs: 450,
@@ -175,7 +180,12 @@ export const motion = {
   beginHintDelayMs: 2800,
   fadeMs: 600,
   barMs: 900,
+  // A tick filling red while its check draws in; a chip or segment changing colour.
+  tickMs: 420,
+  selectMs: 320,
+  // Hero numbers running up to their value.
+  countMs: 1100,
   // Tab bar icons: each plays its small move when its tab is chosen.
-  tabIconMs: 700,
-  tabIconScaleFrom: 0.88,
+  tabIconMs: 800,
+  tabIconScaleFrom: 0.8,
 };

@@ -4,15 +4,17 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import { PrimaryButton } from '@/components/Buttons';
+import { OutlineButton, PrimaryButton } from '@/components/Buttons';
 import { FadeScrollView } from '@/components/FadeScrollView';
-import { BackIcon, ChevronRightIcon } from '@/components/Icons';
+import { BackIcon, ChevronRightIcon, DownloadIcon } from '@/components/Icons';
 import { NumberField } from '@/components/NumberField';
 import { StackScreen } from '@/components/StackScreen';
 import { deleteCheckin, getCheckin, saveCheckin, type CheckinInput } from '@/db/checkins';
 import { LIMITS, inLimits } from '@/lib/body';
 import { confirmDestructive, notify } from '@/lib/confirm';
 import { formatDay, localDate } from '@/lib/dates';
+import { haptic } from '@/lib/haptics';
+import { HEALTH_PROBLEMS, healthImportAvailable, readLatestBody } from '@/lib/healthImport';
 import { rise, stagger } from '@/lib/motion';
 import { formatNumber, parseDecimal, parseWhole } from '@/lib/units';
 import { useUnits } from '@/state/profile';
@@ -49,6 +51,9 @@ export default function CheckinScreen() {
   });
   const [loaded, setLoaded] = useState(!id);
   const [busy, setBusy] = useState(false);
+  // The day a Health Connect reading was filled in from, to say where the numbers came from.
+  const [importedFrom, setImportedFrom] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -65,6 +70,40 @@ export default function CheckinScreen() {
 
   const set = (k: FieldKey) => (v: string) => setText((t) => ({ ...t, [k]: v }));
   const today = localDate();
+
+  // Fills the form from the latest weigh-in in Health Connect (a smart scale's app puts
+  // it there). Nothing is saved until the user looks it over and taps Save.
+  const fillFromHealth = async () => {
+    if (importing) return;
+    setImporting(true);
+    try {
+      const result = await readLatestBody();
+      if ('problem' in result) {
+        notify(...HEALTH_PROBLEMS[result.problem]);
+        return;
+      }
+      const r = result.reading;
+      // A value outside the sanity limits is left for the user to type.
+      const ok = (k: FieldKey, v: number | null): v is number => v !== null && inLimits(k, v);
+      if (!ok('weight', r.weight)) {
+        notify(...HEALTH_PROBLEMS.empty);
+        return;
+      }
+      setDate(r.date);
+      setText((t) => ({
+        ...t,
+        weight: units.show(r.weight),
+        fat: ok('fat', r.fat) ? formatNumber(r.fat) : t.fat,
+        water: ok('water', r.water) ? formatNumber(r.water) : t.water,
+        bone: ok('bone', r.bone) ? units.show(r.bone) : t.bone,
+        bmr: ok('bmr', r.bmr) ? String(r.bmr) : t.bmr,
+      }));
+      setImportedFrom(r.date);
+      haptic.success();
+    } finally {
+      setImporting(false);
+    }
+  };
 
   // Parses every field to stored units (kg). Returns the first problem, if any.
   const read = (): { input: CheckinInput } | { problem: string } => {
@@ -162,7 +201,21 @@ export default function CheckinScreen() {
             </Pressable>
           </Animated.View>
 
-          <Text style={styles.meta}>Only weight is needed. Copy the rest from a scan if you have one.</Text>
+          <Text style={styles.meta}>
+            {importedFrom
+              ? `Filled from Health Connect, weighed ${formatDay(importedFrom)}. Check it, then save.`
+              : 'Only weight is needed. Copy the rest from a scan if you have one.'}
+          </Text>
+
+          {healthImportAvailable && !id && (
+            <Animated.View entering={rise(90)}>
+              <OutlineButton
+                label={importing ? 'Reading…' : 'Fill from Health Connect'}
+                icon={<DownloadIcon color={colors.ink} />}
+                onPress={fillFromHealth}
+              />
+            </Animated.View>
+          )}
 
           <View style={styles.grid}>
             {fields.map(([k, label, placeholder], i) => (
@@ -173,7 +226,8 @@ export default function CheckinScreen() {
                   onChangeText={set(k)}
                   placeholder={placeholder}
                   whole={k === 'bmr'}
-                  autoFocus={!id && k === 'weight'}
+                  // With an import on offer the keyboard waits, so the button isn't covered.
+                  autoFocus={!id && k === 'weight' && !healthImportAvailable}
                 />
               </Animated.View>
             ))}

@@ -130,3 +130,27 @@ export const CheckIcon = (p: IconProps) => (
     <Path d="M5 12.5l4.5 4.5L19 7.5" />
   </Icon>
 );
+
+// Two arrows passing each other: swap this exercise for another.
+export const SwapIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <Path d="M4 8h14l-3.5-3.5" />
+    <Path d="M20 16H6l3.5 3.5" />
+  </Icon>
+);
+
+// A framed picture: attach a photo or clip.
+export const ImageIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <Path d="M4 6.5A1.5 1.5 0 015.5 5h13A1.5 1.5 0 0120 6.5v11a1.5 1.5 0 01-1.5 1.5h-13A1.5 1.5 0 014 17.5z" />
+    <Path d="M4 16l4.5-4.5 4 4 2.5-2.5 5 5" />
+    <Circle cx="15.5" cy="9.5" r="1.25" />
+  </Icon>
+);
+
+export const PencilIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <Path d="M5 19l.8-3.6L16.2 5a1.6 1.6 0 012.3 0l.5.5a1.6 1.6 0 010 2.3L8.6 18.2z" />
+    <Path d="M14.5 6.7l2.8 2.8" />
+  </Icon>
+);

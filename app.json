@@ -33,7 +33,12 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.USE_EXACT_ALARM",
         "android.permission.SCHEDULE_EXACT_ALARM",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.health.READ_WEIGHT",
+        "android.permission.health.READ_BODY_FAT",
+        "android.permission.health.READ_BODY_WATER_MASS",
+        "android.permission.health.READ_BONE_MASS",
+        "android.permission.health.READ_BASAL_METABOLIC_RATE"
       ]
     },
     "web": {
@@ -57,7 +62,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Spotter uses a photo you choose as your profile picture.",
+          "photosPermission": "Spotter uses the photos and clips you choose for your profile picture and your own exercises.",
           "cameraPermission": false,
           "microphonePermission": false
         }
@@ -65,8 +70,8 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Spotter saves your monthly recap card to your photos.",
-          "savePhotosPermission": "Spotter saves your monthly recap card to your photos.",
+          "photosPermission": "Spotter saves your recap and session cards to your photos.",
+          "savePhotosPermission": "Spotter saves your recap and session cards to your photos.",
           "isAccessMediaLocationEnabled": false,
           "granularPermissions": []
         }
@@ -183,6 +188,15 @@
             "./assets/sounds/rest_done.wav"
           ],
           "enableRemoteNotifications": false
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
         }
       ],
       "expo-asset"

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import type { ColorValue } from 'react-native';
 import Animated, {
   useAnimatedProps,
@@ -13,8 +13,9 @@ import Svg, { Path, Rect } from 'react-native-svg';
 import { easeOut } from '@/lib/motion';
 import { motion, size } from '@/theme';
 
-// The tab bar's three icons. Choosing a tab plays that icon's one small move: slow,
-// ease-out, never bouncy, like the rest of the app.
+// The tab bar's three icons. Tapping a tab plays that icon's one small move: slow,
+// ease-out, never bouncy, like the rest of the app. It plays on every tap, including a
+// tap on the tab you're already on, so the bar always answers the thumb.
 //   Today: the outer plates slide onto the bar (loading the dumbbell).
 //   Plan:  the binder pins drop in and the header line draws across.
 //   Body:  the trend line draws itself, then its arrow.
@@ -22,6 +23,15 @@ import { motion, size } from '@/theme';
 // paint) nothing moves.
 
 type IconProps = { color: ColorValue; focused?: boolean };
+
+// The tab bar tells an icon it was tapped by route name ('index', 'plan', 'body').
+// A plain signal rather than a prop: the bar only re-renders an icon when focus
+// changes, and a tap on the current tab changes nothing it can see.
+const pressed = new Map<string, Set<() => void>>();
+
+export function playTabIcon(route: string) {
+  pressed.get(route)?.forEach((play) => play());
+}
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -32,18 +42,34 @@ const stroke = {
   strokeLinejoin: 'round',
 } as const;
 
-// 0 → 1 each time the tab becomes the chosen one; held at 1 otherwise.
-function useChosen(focused: boolean | undefined): SharedValue<number> {
+// 0 → 1 each time the tab is tapped or becomes the chosen one (a link elsewhere in the
+// app can switch tabs too); held at 1 otherwise.
+function useChosen(route: string, focused: boolean | undefined): SharedValue<number> {
   const progress = useSharedValue(1);
   const reduceMotion = useReducedMotion();
   const was = useRef(focused);
+
+  const play = useCallback(() => {
+    if (reduceMotion) return;
+    progress.value = 0;
+    progress.value = withTiming(1, { duration: motion.tabIconMs, easing: easeOut });
+  }, [progress, reduceMotion]);
+
+  useEffect(() => {
+    const listeners = pressed.get(route) ?? new Set();
+    pressed.set(route, listeners);
+    listeners.add(play);
+    return () => {
+      listeners.delete(play);
+    };
+  }, [route, play]);
+
   useEffect(() => {
     const became = focused && !was.current;
     was.current = focused;
-    if (!became || reduceMotion) return;
-    progress.value = 0;
-    progress.value = withTiming(1, { duration: motion.tabIconMs, easing: easeOut });
-  }, [focused, progress, reduceMotion]);
+    if (became) play();
+  }, [focused, play]);
+
   return progress;
 }
 
@@ -62,7 +88,7 @@ function Settle({ progress, children }: { progress: SharedValue<number>; childre
 }
 
 export function TodayIcon({ color, focused }: IconProps) {
-  const p = useChosen(focused);
+  const p = useChosen('index', focused);
   // Outer plates start on the inner ones (x 6.5 / 17.5) and slide out to the bar's ends.
   const left = useAnimatedProps(() => {
     const t = span(p.value, 0.15, 1);
@@ -89,7 +115,7 @@ export function TodayIcon({ color, focused }: IconProps) {
 const PLAN_LINE = 16;
 
 export function PlanIcon({ color, focused }: IconProps) {
-  const p = useChosen(focused);
+  const p = useChosen('plan', focused);
   // Pins come down 2 units into their holes, then the header line draws left to right.
   const pins = useAnimatedProps(() => {
     const drop = 2 * (1 - span(p.value, 0, 0.6));
@@ -114,7 +140,7 @@ const TREND = 25;
 const ARROW = 10;
 
 export function BodyIcon({ color, focused }: IconProps) {
-  const p = useChosen(focused);
+  const p = useChosen('body', focused);
   const trend = useAnimatedProps(() => ({ strokeDashoffset: TREND * (1 - span(p.value, 0, 0.75)) }));
   const arrow = useAnimatedProps(() => ({ strokeDashoffset: ARROW * (1 - span(p.value, 0.6, 1)) }));
   return (

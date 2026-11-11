@@ -19,7 +19,13 @@ export type Equipment = 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweig
 
 // What the demo player shows. `key` points into a bundled registry (see exerciseFrames.ts),
 // never at a file path, so swapping frames for a filmed clip later is a data change only.
-export type ExerciseMedia = { type: 'frames'; key: string } | { type: 'video'; key: string };
+// `file` is a photo, GIF or short clip the user attached to their own exercise: `name` is
+// a file in the app's documents folder (see lib/exerciseMedia), never a full path, since
+// the folder's location can change between installs.
+export type ExerciseMedia =
+  | { type: 'frames'; key: string }
+  | { type: 'video'; key: string }
+  | { type: 'file'; kind: 'image' | 'video'; name: string };
 
 // What an exercise works. primary: what it's for; secondary: what helps or holds steady.
 export type Targets = { primary: string[]; secondary: string[] };
@@ -30,7 +36,8 @@ export type Exercise = {
   muscle: Muscle;
   equipment: Equipment;
   cues: string[];
-  media: ExerciseMedia | null; // null for custom exercises: they have no demo
+  media: ExerciseMedia | null; // null for a custom exercise with nothing attached
   targets: Targets | null; // null for custom exercises: only their muscle group is known
+  note: string | null; // the user's own reminder, e.g. "seat 4, narrow grip"
   isCustom: boolean;
 };

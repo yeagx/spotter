@@ -349,6 +349,7 @@ function StepButton({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
+      haptic="select"
       hitSlop={STEP_SLOP}
       style={styles.step}
     >

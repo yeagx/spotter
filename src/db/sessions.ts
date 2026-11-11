@@ -273,6 +273,130 @@ export async function exerciseHistory(
     .reverse();
 }
 
+export type ExerciseSession = { sessionId: string; at: number; sets: Lift[] };
+
+// The last `limit` sessions that included this exercise, newest first, each with its
+// sets in the order they were done. Unfinished sessions count too: the sets are real.
+export async function exerciseSessions(
+  db: SQLiteDatabase,
+  exerciseId: string,
+  limit = 5,
+): Promise<ExerciseSession[]> {
+  const rows = await db.getAllAsync<{ session_id: string; kg: number; reps: number; done_at: number }>(
+    `SELECT session_id, kg, reps, done_at FROM set_log
+     WHERE exercise_id = $ex
+       AND session_id IN (
+         SELECT session_id FROM set_log WHERE exercise_id = $ex
+         GROUP BY session_id ORDER BY MAX(done_at) DESC LIMIT $limit)
+     ORDER BY set_index`,
+    { $ex: exerciseId, $limit: limit },
+  );
+  const bySession = new Map<string, ExerciseSession>();
+  for (const r of rows) {
+    const s = bySession.get(r.session_id) ?? { sessionId: r.session_id, at: 0, sets: [] };
+    s.at = Math.max(s.at, r.done_at);
+    s.sets.push({ kg: r.kg, reps: r.reps });
+    bySession.set(r.session_id, s);
+  }
+  return [...bySession.values()].sort((a, b) => b.at - a.at);
+}
+
+// Exercises swapped for this session only, keyed by day_exercise id.
+export async function getSwaps(db: SQLiteDatabase, sessionId: string): Promise<Map<string, string>> {
+  const rows = await db.getAllAsync<{ day_exercise_id: string; exercise_id: string }>(
+    'SELECT day_exercise_id, exercise_id FROM session_swap WHERE session_id = ?',
+    sessionId,
+  );
+  return new Map(rows.map((r) => [r.day_exercise_id, r.exercise_id]));
+}
+
+// Records a swap, or takes it back when `exerciseId` is null (the planned exercise again).
+export async function saveSwap(
+  db: SQLiteDatabase,
+  sessionId: string,
+  dayExerciseId: string,
+  exerciseId: string | null,
+): Promise<void> {
+  if (exerciseId === null) {
+    await db.runAsync(
+      'DELETE FROM session_swap WHERE session_id = ? AND day_exercise_id = ?',
+      sessionId,
+      dayExerciseId,
+    );
+    return;
+  }
+  const now = Date.now();
+  await db.runAsync(
+    `INSERT INTO session_swap (session_id, day_exercise_id, exercise_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT (session_id, day_exercise_id) DO UPDATE SET
+       exercise_id = excluded.exercise_id,
+       updated_at = excluded.updated_at`,
+    sessionId,
+    dayExerciseId,
+    exerciseId,
+    now,
+    now,
+  );
+}
+
+export type SummaryLine = {
+  exerciseId: string;
+  name: string;
+  sets: number;
+  top: Lift; // heaviest set, then most reps at that weight
+  isBest: boolean; // beat every earlier session
+};
+
+export type SessionSummary = {
+  session: Session;
+  dayName: string | null; // null when the day has since been removed from the plan
+  lines: SummaryLine[]; // in the order the exercises were first done
+  sets: number;
+  volumeKg: number; // weight × reps over every set; 0 for a bodyweight-only session
+};
+
+// Everything the finished-session screen and its share card say about one session.
+export async function sessionSummary(db: SQLiteDatabase, sessionId: string): Promise<SessionSummary | null> {
+  const session = await getSession(db, sessionId);
+  if (!session) return null;
+  const day = session.splitDayId
+    ? await db.getFirstAsync<{ name: string }>('SELECT name FROM split_day WHERE id = ?', session.splitDayId)
+    : null;
+  const rows = await db.getAllAsync<{ exercise_id: string; name: string; kg: number; reps: number }>(
+    `SELECT l.exercise_id, e.name, l.kg, l.reps FROM set_log l
+     JOIN exercise e ON e.id = l.exercise_id
+     WHERE l.session_id = ? ORDER BY l.done_at`,
+    sessionId,
+  );
+  const bests = new Set(await newBestsIn(db, sessionId));
+  const lines = new Map<string, SummaryLine>();
+  let volumeKg = 0;
+  for (const r of rows) {
+    volumeKg += r.kg * r.reps;
+    const line = lines.get(r.exercise_id);
+    if (!line) {
+      lines.set(r.exercise_id, {
+        exerciseId: r.exercise_id,
+        name: r.name,
+        sets: 1,
+        top: { kg: r.kg, reps: r.reps },
+        isBest: bests.has(r.exercise_id),
+      });
+    } else {
+      line.sets += 1;
+      if (beats(r, line.top)) line.top = { kg: r.kg, reps: r.reps };
+    }
+  }
+  return {
+    session,
+    dayName: day?.name.trim() || null,
+    lines: [...lines.values()],
+    sets: rows.length,
+    volumeKg,
+  };
+}
+
 // Heaviest weight from the last session per exercise, for Today's list.
 export async function lastTopKg(
   db: SQLiteDatabase,

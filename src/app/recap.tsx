@@ -1,24 +1,23 @@
-import { File, Paths } from 'expo-file-system';
-import { Asset, requestPermissionsAsync } from 'expo-media-library';
 import { useLocalSearchParams } from 'expo-router';
-import * as Sharing from 'expo-sharing';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View, type HostInstance } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type HostInstance } from 'react-native';
 import Animated, { Keyframe, ReduceMotion } from 'react-native-reanimated';
-import { captureRef } from 'react-native-view-shot';
 
 import { Avatar } from '@/components/Avatar';
+import { CountUp } from '@/components/CountUp';
+import { DrawnCheck } from '@/components/DrawnCheck';
 import { FadeScrollView } from '@/components/FadeScrollView';
-import { CheckIcon, DownloadIcon, ShareIcon } from '@/components/Icons';
+import { DownloadIcon, ShareIcon } from '@/components/Icons';
 import { Logo } from '@/components/Logo';
 import { PressableScale } from '@/components/PressableScale';
 import { SlantStrip } from '@/components/Slant';
 import { StackScreen } from '@/components/StackScreen';
 import { getRecap, type Recap } from '@/db/recap';
-import { notify } from '@/lib/confirm';
 import { formatDay, isMonthKey, monthKey, monthName } from '@/lib/dates';
+import { haptic } from '@/lib/haptics';
 import { easeOut, rise, stagger, webSafe } from '@/lib/motion';
+import { saveCard, shareCard } from '@/lib/shareCard';
 import { formatNumber } from '@/lib/units';
 import { useProfile, useUnits } from '@/state/profile';
 import { colors, motion, radius, size, space, type } from '@/theme';
@@ -58,58 +57,21 @@ export default function RecapScreen() {
     getRecap(db, month).then(setRecap);
   }, [db, month]);
 
-  // Renders the card to a PNG named after the month, e.g. spotter-november-2026.png,
-  // so it reads well in the gallery and in whatever it's shared to.
-  const capture = async () => {
-    const tmp = await captureRef(shot, { format: 'png', quality: 1, result: 'tmpfile' });
-    const named = new File(Paths.cache, `spotter-${monthName(month).toLowerCase()}-${month.slice(0, 4)}.png`);
-    if (named.exists) named.delete();
-    await new File(tmp).copy(named);
-    return named.uri;
-  };
-
-  const save = async () => {
+  // The image is named after the month, e.g. spotter-november-2026.png, so it reads well
+  // in the gallery and in whatever it's shared to.
+  const fileName = `spotter-${monthName(month).toLowerCase()}-${month.slice(0, 4)}`;
+  const run = async (action: () => Promise<void>) => {
     if (busy) return;
     setBusy(true);
+    haptic.press();
     try {
-      // Android 10+ lets an app add its own image to the gallery with no permission at
-      // all, so only older Android and iOS (add-only) are asked.
-      const needsPermission = Platform.OS !== 'android' || Number(Platform.Version) < 29;
-      if (needsPermission) {
-        const permission = await requestPermissionsAsync(true);
-        if (!permission.granted) {
-          notify('Can’t save yet', 'Allow Spotter to add photos in your phone’s settings, then try again.');
-          return;
-        }
-      }
-      await Asset.create(await capture());
-      notify('Saved', 'Your recap is in your photos.');
-    } catch (e) {
-      if (__DEV__) console.warn('Recap save failed', e);
-      notify('Couldn’t save', 'Something went wrong saving the image. Try sharing it instead.');
+      await action();
     } finally {
       setBusy(false);
     }
   };
-
-  const share = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      if (!(await Sharing.isAvailableAsync())) {
-        notify('Can’t share here', 'Sharing isn’t available on this device.');
-        return;
-      }
-      await Sharing.shareAsync(await capture(), {
-        mimeType: 'image/png',
-        dialogTitle: `${monthName(month)} recap`,
-      });
-    } catch {
-      notify('Couldn’t share', 'Something went wrong. Try again.');
-    } finally {
-      setBusy(false);
-    }
-  };
+  const save = () => run(() => saveCard(shot, fileName, 'recap'));
+  const share = () => run(() => shareCard(shot, fileName, `${monthName(month)} recap`));
 
   const lines = recap
     ? [
@@ -137,10 +99,13 @@ export default function RecapScreen() {
           <Pressable
             accessibilityRole="checkbox"
             accessibilityState={{ checked: showMe }}
-            onPress={() => setShowMe((v) => !v)}
+            onPress={() => {
+              haptic.select();
+              setShowMe((v) => !v);
+            }}
             style={styles.toggle}
           >
-            <View style={[styles.box, showMe && styles.boxOn]}>{showMe && <CheckIcon />}</View>
+            <View style={[styles.box, showMe && styles.boxOn]}>{showMe && <DrawnCheck />}</View>
             <Text style={styles.toggleLabel}>Show my name and photo on the card</Text>
           </Pressable>
           <View style={styles.actions}>
@@ -180,9 +145,7 @@ export default function RecapScreen() {
               </View>
 
               <Animated.View entering={rise(600)} style={styles.count}>
-                <Text style={styles.hero} numberOfLines={1} adjustsFontSizeToFit>
-                  {recap.done}
-                </Text>
+                <CountUp value={recap.done} delay={600} style={styles.hero} numberOfLines={1} adjustsFontSizeToFit />
                 <Text style={styles.countLabel}>
                   {recap.done === 1 ? 'session' : 'sessions'} of {recap.planned} planned
                 </Text>
@@ -190,6 +153,8 @@ export default function RecapScreen() {
 
               {bars > 0 && (
                 <SlantStrip
+                  grow
+                  delay={800}
                   height={size.stripTick}
                   gap={space[1]}
                   bars={Array.from({ length: bars }, (_, i) => ({

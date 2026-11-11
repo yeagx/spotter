@@ -143,4 +143,19 @@ export const MIGRATIONS: string[] = [
   `
   ALTER TABLE exercise ADD COLUMN targets_json TEXT;
   `,
+  // 5: a note kept with each exercise ("seat 4, narrow grip"), and exercises swapped for
+  // one session only (the machine was taken), so a resumed session keeps the swap.
+  // The library seed never writes `note`, so it survives library updates.
+  `
+  ALTER TABLE exercise ADD COLUMN note TEXT;
+
+  CREATE TABLE session_swap (
+    session_id TEXT NOT NULL REFERENCES session (id) ON DELETE CASCADE,
+    day_exercise_id TEXT NOT NULL,
+    exercise_id TEXT NOT NULL REFERENCES exercise (id),
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (session_id, day_exercise_id)
+  );
+  `,
 ];

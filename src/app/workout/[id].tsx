@@ -1,5 +1,4 @@
 import { randomUUID } from 'expo-crypto';
-import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -12,17 +11,29 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeIn,
+  interpolateColor,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/Buttons';
 import { DemoPlayer } from '@/components/DemoPlayer';
+import { DrawnCheck } from '@/components/DrawnCheck';
+import { ExerciseNote } from '@/components/ExerciseNote';
 import { FOOTER_CLEARANCE, FadeScrollView } from '@/components/FadeScrollView';
-import { CheckIcon, CloseIcon, PlusIcon } from '@/components/Icons';
+import { CheckIcon, CloseIcon, PlusIcon, SwapIcon } from '@/components/Icons';
 import { PinnedFooter } from '@/components/PinnedFooter';
+import { PlateLine } from '@/components/PlateLine';
 import { PressableScale } from '@/components/PressableScale';
 import { SlantStrip } from '@/components/Slant';
 import { TargetsLine } from '@/components/TargetsLine';
+import { getExercise } from '@/db/exercises';
 import { getDay, type DayExercise } from '@/db/plan';
 import {
   beats,
@@ -31,29 +42,35 @@ import {
   endSession,
   getSession,
   getSetCounts,
+  getSwaps,
   lastSets,
   listSetLogs,
   removeSet,
   saveSetCount,
   saveSetLog,
+  saveSwap,
   type Lift,
 } from '@/db/sessions';
+import type { Exercise } from '@/db/types';
 import { confirmDestructive, notify } from '@/lib/confirm';
 import { formatClock } from '@/lib/dates';
-import { rise, stagger } from '@/lib/motion';
+import { haptic } from '@/lib/haptics';
+import { easeOut, rise, stagger } from '@/lib/motion';
 import { cancelRestEnd, playRestDone, prepareRestAlerts, scheduleRestEnd } from '@/lib/restAlert';
 import { formatReps, formatRest } from '@/lib/scheme';
+import { openSwap } from '@/lib/swapPicker';
 import { parseDecimal, parseWhole } from '@/lib/units';
 import { useContentColumn } from '@/hooks/useContentColumn';
 import { useProfile, useUnits } from '@/state/profile';
-import { colors, layout, radius, size, space, type } from '@/theme';
+import { colors, layout, motion, radius, size, space, type } from '@/theme';
 
 // One set row. kg and reps hold what's on screen (in the user's units) so typing is
 // free; `logId` is set once the set is ticked and saved.
 type Row = { kg: string; reps: string; logId: string | null };
 
 type Block = {
-  item: DayExercise;
+  item: DayExercise; // `item.exercise` is what's being done: the planned one, or a swap
+  planned: Exercise; // what the plan says, so a swap can be told apart and undone
   rows: Row[];
   bestBefore: Lift | null; // best from earlier sessions, for "new best."
   lastTop: Lift | null; // top set last time, for "last time 20 kg × 10"
@@ -67,6 +84,15 @@ const TICK_MS = 500;
 const LATE_MS = 2000;
 
 const isDone = (b: Block) => b.rows.every((r) => r.logId);
+
+const topOf = (sets: Lift[]) => sets.reduce<Lift | null>((top, s) => (beats(s, top) ? s : top), null);
+
+// Blank rows pre-filled from the same set last time, or the last set they did.
+const prefill = (count: number, last: Lift[], repsMin: number, show: (kg: number) => string): Row[] =>
+  Array.from({ length: count }, (_, i) => {
+    const prev = last[i] ?? last[last.length - 1];
+    return { kg: prev ? show(prev.kg) : '', reps: String(prev?.reps ?? repsMin), logId: null };
+  });
 
 export default function WorkoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -113,8 +139,13 @@ export default function WorkoutScreen() {
       }
       const logs = await listSetLogs(db, id);
       const counts = await getSetCounts(db, id);
+      const swaps = await getSwaps(db, id);
       const built: Block[] = [];
-      for (const item of day.exercises) {
+      for (const planned of day.exercises) {
+        // An exercise swapped earlier in this session stays swapped when it's resumed.
+        const swappedId = swaps.get(planned.id);
+        const swapped = swappedId ? await getExercise(db, swappedId) : null;
+        const item = swapped ? { ...planned, exercise: swapped } : planned;
         const mine = logs.filter((l) => l.exerciseId === item.exercise.id);
         const last = await lastSets(db, item.exercise.id, id);
         const bestBefore = await bestLift(db, item.exercise.id, id);
@@ -131,8 +162,7 @@ export default function WorkoutScreen() {
             logId: null,
           };
         });
-        const lastTop = last.reduce<Lift | null>((top, s) => (beats(s, top) ? s : top), null);
-        built.push({ item, rows, bestBefore, lastTop });
+        built.push({ item, planned: planned.exercise, rows, bestBefore, lastTop: topOf(last) });
       }
       setStartedAt(session.startedAt);
       commit(built);
@@ -183,6 +213,13 @@ export default function WorkoutScreen() {
     }
   }, [now, restEndsAt, restingInto, alertMode]);
 
+  // The last three seconds of a rest tick under your thumb, so you can keep your eyes
+  // off the phone and still be ready.
+  const restSeconds = restEndsAt !== null ? Math.ceil((restEndsAt - now) / 1000) : null;
+  useEffect(() => {
+    if (restSeconds !== null && restSeconds >= 1 && restSeconds <= 3 && alertMode !== 'off') haptic.select();
+  }, [restSeconds, alertMode]);
+
   const skipRest = useCallback(() => {
     setRestEndsAt(null);
     if (restingInto !== null) {
@@ -227,13 +264,13 @@ export default function WorkoutScreen() {
       }
       const lift = readRow(row);
       if (!lift) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        haptic.warn();
         notify('Check the numbers', 'Enter the weight and reps for this set.');
         return;
       }
       const logId = randomUUID();
       await saveSetLog(db, id, { id: logId, exerciseId: block.item.exercise.id, setIndex: ri, ...lift });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      haptic.press();
       updateRow(bi, ri, { logId, kg: units.show(lift.kg), reps: String(lift.reps) });
       // First time on an exercise there's nothing to pre-fill from, so carry this
       // weight down to later sets that are still blank.
@@ -248,7 +285,7 @@ export default function WorkoutScreen() {
         .reduce<Lift | null>((top, l) => (l && beats(l, top) ? l : top), null);
       if (block.bestBefore && beats(lift, block.bestBefore) && beats(lift, today)) {
         setNewBestUntil(Date.now() + NEW_BEST_MS);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        haptic.success();
       }
 
       const sessionDone = blocksRef.current.every((b, i) =>
@@ -306,6 +343,7 @@ export default function WorkoutScreen() {
         return { ...b, rows: [...b.rows, { kg: last?.kg ?? '', reps: last?.reps ?? '', logId: null }] };
       }),
     );
+    haptic.select();
     const b = blocksRef.current[bi];
     saveSetCount(db, id, b.item.id, b.rows.length).catch(() => {});
   };
@@ -344,12 +382,49 @@ export default function WorkoutScreen() {
       commit(
         blocksRef.current.map((b, i) => (i === bi ? { ...b, rows: b.rows.filter((_, j) => j !== ri) } : b)),
       );
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      haptic.press();
     } catch {
       notify('Couldn’t remove that set', 'Try again.');
     } finally {
       busy.current = false;
     }
+  };
+
+  // The machine is taken: do something else for this exercise today. Only this session
+  // changes; the plan keeps the original. Sets already ticked belong to the exercise
+  // they were done on, so they have to come off first.
+  const askSwap = (bi: number) => {
+    Keyboard.dismiss();
+    const block = blocksRef.current[bi];
+    if (block.rows.some((r) => r.logId)) {
+      notify('Sets already ticked', 'Untick this exercise’s sets first, then swap it.');
+      return;
+    }
+    openSwap({
+      current: block.item.exercise,
+      planned: block.planned,
+      takenIds: blocksRef.current.filter((_, i) => i !== bi).map((b) => b.item.exercise.id),
+      onPick: async (exercise) => {
+        const last = await lastSets(db, exercise.id, id);
+        const bestBefore = await bestLift(db, exercise.id, id);
+        // Picking the planned exercise again takes the swap back.
+        await saveSwap(db, id, block.item.id, exercise.id === block.planned.id ? null : exercise.id);
+        commit(
+          blocksRef.current.map((b, i) =>
+            i !== bi
+              ? b
+              : {
+                  ...b,
+                  item: { ...b.item, exercise },
+                  rows: prefill(b.rows.length, last, b.item.repsMin, units.show),
+                  bestBefore,
+                  lastTop: topOf(last),
+                },
+          ),
+        );
+        haptic.press();
+      },
+    });
   };
 
   const finish = useCallback(async () => {
@@ -397,6 +472,7 @@ export default function WorkoutScreen() {
   if (state === 'loading' || !blocks.length) return <View style={styles.root} />;
 
   const block = blocks[index];
+  const swapped = block.item.exercise.id !== block.planned.id;
   const active = block.rows.findIndex((r) => !r.logId);
   const blockDone = active === -1;
   const allDone = blocks.every(isDone);
@@ -407,10 +483,11 @@ export default function WorkoutScreen() {
     .find((k) => !isDone(blocks[k]));
 
   const cta = allDone
-    ? { label: 'Finish session', onPress: finish }
+    ? { label: 'Finish session', onPress: finish, quiet: false }
     : blockDone
       ? {
           label: 'Next exercise',
+          quiet: false,
           // Still resting: show the rest screen first; it moves on when rest ends.
           onPress: () => {
             Keyboard.dismiss();
@@ -419,7 +496,7 @@ export default function WorkoutScreen() {
             else setIndex(nextOpen);
           },
         }
-      : { label: `Log set ${active + 1}`, onPress: () => toggle(index, active) };
+      : { label: `Log set ${active + 1}`, onPress: () => toggle(index, active), quiet: true };
 
   // Priority: a new best, then the rest countdown (with "locked in." beside it once the
   // exercise is done), then "locked in." alone, then the plan's rest and last time.
@@ -480,6 +557,7 @@ export default function WorkoutScreen() {
                   accessibilityLabel={`Go to ${b.item.exercise.name}`}
                   onPress={() => {
                     Keyboard.dismiss();
+                    if (i !== index) haptic.select();
                     setIndex(i);
                   }}
                   style={styles.progressTap}
@@ -505,7 +583,7 @@ export default function WorkoutScreen() {
                 contentContainerStyle={styles.content}
                 bottomOffset={FOOTER_CLEARANCE + type.caption.lineHeight + space[3]}
               >
-                <Animated.View entering={rise(60)}>
+                <Animated.View entering={rise(60)} style={styles.titleRow}>
                   <Pressable
                     accessibilityRole="button"
                     accessibilityHint="Shows form cues and your history"
@@ -516,8 +594,18 @@ export default function WorkoutScreen() {
                     <TargetsLine exercise={block.item.exercise} />
                     <Text style={styles.meta}>
                       {block.item.sets} sets · {formatReps(block.item.repsMin, block.item.repsMax)} reps
+                      {swapped ? ` · instead of ${block.planned.name}, today only` : ''}
                     </Text>
                   </Pressable>
+                  <PressableScale
+                    accessibilityRole="button"
+                    accessibilityLabel="Swap this exercise"
+                    accessibilityHint="Pick another one for this session only"
+                    onPress={() => askSwap(index)}
+                    style={styles.close}
+                  >
+                    <SwapIcon />
+                  </PressableScale>
                 </Animated.View>
 
                 <Animated.View entering={rise(140)}>
@@ -529,6 +617,10 @@ export default function WorkoutScreen() {
                     {block.item.exercise.cues.join(' ')}
                   </Animated.Text>
                 )}
+
+                <Animated.View entering={rise(220)}>
+                  <ExerciseNote key={block.item.exercise.id} exerciseId={block.item.exercise.id} />
+                </Animated.View>
 
                 <View style={styles.sets}>
                   <Animated.View entering={rise(240)} style={styles.gridHead}>
@@ -551,6 +643,9 @@ export default function WorkoutScreen() {
                       onRemove={() => askRemoveSet(index, ri)}
                     />
                   ))}
+                  {block.item.exercise.equipment === 'barbell' && !blockDone && (
+                    <PlateLine exerciseId={block.item.exercise.id} value={block.rows[active].kg} />
+                  )}
                   <View style={styles.setActions}>
                     <Pressable accessibilityRole="button" onPress={() => addSet(index)} style={styles.addSet}>
                       <PlusIcon />
@@ -567,7 +662,7 @@ export default function WorkoutScreen() {
 
               <PinnedFooter>
                 <View style={styles.status}>{status}</View>
-                <PrimaryButton label={cta.label} onPress={cta.onPress} />
+                <PrimaryButton label={cta.label} onPress={cta.onPress} haptic={cta.quiet ? null : 'press'} />
               </PinnedFooter>
             </>
           )}
@@ -591,6 +686,13 @@ type RestScreenProps = {
 // what's next, and a way out. Moves on by itself when the time is up.
 function RestScreen({ remaining, total, next, unitLabel, show, onAdd, onSkip }: RestScreenProps) {
   const left = total > 0 ? Math.min(1, Math.max(0, remaining / total)) : 0;
+  // The clock ticks twice a second; the bar glides between ticks instead of stepping.
+  const reduceMotion = useReducedMotion();
+  const percent = useSharedValue(left * 100);
+  useEffect(() => {
+    percent.value = reduceMotion ? left * 100 : withTiming(left * 100, { duration: TICK_MS, easing: Easing.linear });
+  }, [left, percent, reduceMotion]);
+  const fill = useAnimatedStyle(() => ({ width: `${percent.value}%` }));
   return (
     <>
       <Animated.View entering={rise()} style={styles.rest}>
@@ -605,7 +707,7 @@ function RestScreen({ remaining, total, next, unitLabel, show, onAdd, onSkip }: 
           {formatClock(remaining)}
         </Text>
         <View style={styles.restTrack}>
-          <View style={[styles.restFill, { width: `${left * 100}%` }]} />
+          <Animated.View style={[styles.restFill, fill]} />
         </View>
         <View style={styles.upNext}>
           <Text style={styles.label}>Up next</Text>
@@ -623,11 +725,17 @@ function RestScreen({ remaining, total, next, unitLabel, show, onAdd, onSkip }: 
             accessibilityRole="button"
             accessibilityLabel="Add 15 seconds"
             onPress={onAdd}
+            haptic="select"
             style={[styles.restButton, styles.restMore]}
           >
             <Text style={styles.restMoreLabel}>+15 s</Text>
           </PressableScale>
-          <PressableScale accessibilityRole="button" onPress={onSkip} style={[styles.restButton, styles.restSkip]}>
+          <PressableScale
+            accessibilityRole="button"
+            onPress={onSkip}
+            haptic="press"
+            style={[styles.restButton, styles.restSkip]}
+          >
             <Text style={styles.restSkipLabel}>Skip rest</Text>
           </PressableScale>
         </View>
@@ -702,16 +810,27 @@ function SetRow({ index, row, delay, isActive, unitLabel, onChange, onBlur, onTo
         accessibilityState={{ checked: done }}
         accessibilityLabel={done ? `Set ${index + 1} done, tap to undo` : `Mark set ${index + 1} done`}
         onPress={onToggle}
-        style={[styles.tick, done && styles.tickDone]}
       >
-        {done ? (
-          <Animated.View entering={FadeIn.duration(260)}>
-            <CheckIcon size={size.iconMd} />
-          </Animated.View>
-        ) : (
-          <CheckIcon size={size.iconMd} color={colors.inkFaint} />
-        )}
+        <Tick done={done} />
       </PressableScale>
+    </Animated.View>
+  );
+}
+
+// The tick box. Done, it fills with red while the check draws itself in.
+function Tick({ done }: { done: boolean }) {
+  const reduceMotion = useReducedMotion();
+  const fill = useSharedValue(done ? 1 : 0);
+  useEffect(() => {
+    const to = done ? 1 : 0;
+    fill.value = reduceMotion ? to : withTiming(to, { duration: motion.tickMs, easing: easeOut });
+  }, [done, fill, reduceMotion]);
+  const style = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(fill.value, [0, 1], [colors.surfaceRaised, colors.spotterRed]),
+  }));
+  return (
+    <Animated.View style={[styles.tick, style]}>
+      {done ? <DrawnCheck size={size.iconMd} /> : <CheckIcon size={size.iconMd} color={colors.inkFaint} />}
     </Animated.View>
   );
 }
@@ -744,7 +863,8 @@ const styles = StyleSheet.create({
   progressTaps: { flexDirection: 'row' },
   progressTap: { flex: 1 },
   content: { gap: space[4] },
-  titleBlock: { gap: space[1] },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space[3] },
+  titleBlock: { flex: 1, gap: space[1] },
   title: { ...type.title, color: colors.ink },
   meta: { ...type.caption, color: colors.inkMuted },
   sets: { gap: space[2] },
@@ -788,7 +908,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tickDone: { backgroundColor: colors.spotterRed },
   setNumberTap: { alignSelf: 'stretch', minHeight: size.tapTarget, justifyContent: 'center' },
   setNumberPressed: { opacity: 0.5 },
   setActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[3] },

@@ -39,6 +39,7 @@ type TodayData = {
   doneThisWeek: Set<string>;
   lastKg: Map<string, number>;
   recapMonth: string | null;
+  sharable: string | null; // the session finished most recently today, if any
 };
 
 export default function TodayScreen() {
@@ -76,6 +77,7 @@ export default function TodayScreen() {
           doneThisWeek: dayIds(week),
           lastKg,
           recapMonth,
+          sharable: week.filter((s) => s.startedAt >= dayStart).pop()?.id ?? null,
         });
       })();
       return () => {
@@ -215,6 +217,19 @@ export default function TodayScreen() {
       <View style={styles.content}>
         {header}
         {body}
+        {data.sharable && !open && (
+          <Animated.View entering={rise(460)}>
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityHint="Opens a card you can save or share"
+              onPress={() => router.push({ pathname: '/session/[id]', params: { id: data.sharable! } })}
+              style={styles.recap}
+            >
+              <Text style={styles.rowName}>Today’s session card</Text>
+              <ChevronRightIcon />
+            </PressableScale>
+          </Animated.View>
+        )}
         {data.recapMonth && (
           <Animated.View entering={rise(500)}>
             <PressableScale
@@ -284,7 +299,11 @@ function DayBody({ label, lead, day, note, split, data, startLabel, onStart, uni
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => router.push({ pathname: '/exercise/[id]', params: { id: e.exercise.id } })}
-                  style={[styles.row, i < day.exercises.length - 1 && styles.rowDivider]}
+                  style={({ pressed }) => [
+                    styles.row,
+                    i < day.exercises.length - 1 && styles.rowDivider,
+                    pressed && styles.rowPressed,
+                  ]}
                 >
                   <View style={styles.rowText}>
                     <Text style={styles.rowName}>{e.exercise.name}</Text>
@@ -348,7 +367,7 @@ function WeekStrip({ split, doneThisWeek }: { split: Split; doneThisWeek: Set<st
 
 function StartButton({ label, onPress }: { label: string; onPress: () => void }) {
   return (
-    <PressableScale accessibilityRole="button" onPress={onPress} style={styles.start}>
+    <PressableScale accessibilityRole="button" onPress={onPress} haptic="press" style={styles.start}>
       <Text style={styles.startLabel}>{label}</Text>
       <ArrowRightIcon />
     </PressableScale>
@@ -413,6 +432,7 @@ const styles = StyleSheet.create({
     paddingVertical: space[2],
   },
   rowDivider: { borderBottomWidth: size.divider, borderBottomColor: colors.hairline },
+  rowPressed: { opacity: 0.6 },
   rowText: { flex: 1 },
   rowName: { ...type.bodyStrong, color: colors.ink },
   kg: { flexDirection: 'row', alignItems: 'baseline', gap: space[1] },

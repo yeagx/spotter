@@ -3,6 +3,7 @@ import { StyleSheet, Text } from 'react-native';
 
 import { PressableScale } from '@/components/PressableScale';
 import { PlusIcon } from '@/components/Icons';
+import type { HapticKind } from '@/lib/haptics';
 import { colors, radius, size, space, type } from '@/theme';
 
 type ButtonProps = {
@@ -13,13 +14,21 @@ type ButtonProps = {
 
 // The one red action on a screen. Fixed 56px tall: buttons never shrink.
 // Disabled drops to surface-raised so red only appears once there's something to do.
-export function PrimaryButton({ label, onPress, disabled }: ButtonProps) {
+// Pressing it taps back; pass `haptic={null}` when the action gives its own tap
+// (ticking a set), so the two don't land on top of each other.
+export function PrimaryButton({
+  label,
+  onPress,
+  disabled,
+  haptic = 'press',
+}: ButtonProps & { haptic?: HapticKind | null }) {
   return (
     <PressableScale
       accessibilityRole="button"
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
+      haptic={haptic}
       style={[styles.primary, disabled && styles.primaryDisabled]}
     >
       <Text style={[styles.primaryLabel, disabled && styles.labelDisabled]} numberOfLines={1}>
@@ -36,7 +45,7 @@ export function OutlineButton({
   icon = <PlusIcon color={colors.ink} />,
 }: ButtonProps & { icon?: ReactNode }) {
   return (
-    <PressableScale accessibilityRole="button" onPress={onPress} style={styles.outline}>
+    <PressableScale accessibilityRole="button" onPress={onPress} haptic="select" style={styles.outline}>
       {icon}
       <Text style={styles.outlineLabel}>{label}</Text>
     </PressableScale>
@@ -58,6 +67,7 @@ export function SmallButton({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
+      haptic={primary ? 'press' : 'select'}
       style={[styles.small, raised && styles.smallRaised, primary && styles.smallPrimary]}
     >
       <Text

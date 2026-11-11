@@ -84,6 +84,7 @@ export function DialogHost() {
                   key={a.label}
                   accessibilityRole="button"
                   onPress={() => close(i)}
+                  haptic={a.kind === 'primary' ? 'press' : 'select'}
                   style={[styles.action, a.kind === 'primary' ? styles.primary : styles.neutral]}
                 >
                   <Text

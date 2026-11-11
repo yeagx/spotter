@@ -2,19 +2,23 @@ import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import { PrimaryButton, SmallButton } from '@/components/Buttons';
 import { Chip } from '@/components/Chip';
+import { DrawnCheck } from '@/components/DrawnCheck';
 import { EdgeFade } from '@/components/EdgeFade';
 import { ExerciseThumb } from '@/components/ExerciseThumb';
 import { FadeScrollView } from '@/components/FadeScrollView';
-import { CheckIcon, SearchIcon } from '@/components/Icons';
+import { ImageIcon, SearchIcon } from '@/components/Icons';
 import { StackScreen } from '@/components/StackScreen';
 import { TargetsLine } from '@/components/TargetsLine';
 import { TextField } from '@/components/TextField';
 import { createCustomExercise, listExercises } from '@/db/exercises';
 import { MUSCLES, type Exercise, type Muscle } from '@/db/types';
+import { notify } from '@/lib/confirm';
+import { haptic } from '@/lib/haptics';
+import { PICK_PROBLEMS, pickExerciseMedia, removeExerciseMedia, type FileMedia } from '@/lib/exerciseMedia';
 import { equipmentLabel, muscleLabel, searchText } from '@/lib/labels';
 import { currentLibraryRequest } from '@/lib/libraryPicker';
 import { rise, settle } from '@/lib/motion';
@@ -61,8 +65,10 @@ export default function LibraryScreen() {
   if (!request) return null;
   const existing = new Set(request.existingIds);
 
-  const toggle = (id: string) =>
+  const toggle = (id: string) => {
+    haptic.select();
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  };
 
   const onCreated = (exercise: Exercise) => {
     setAll((list) => [...list, exercise].sort(byMuscleThenName));
@@ -143,7 +149,7 @@ export default function LibraryScreen() {
                   accessibilityState={{ checked: on, disabled: already }}
                   disabled={already}
                   onPress={() => toggle(e.id)}
-                  style={styles.row}
+                  style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
                 >
                   <ExerciseThumb media={e.media} />
                   <View style={styles.rowText}>
@@ -154,11 +160,7 @@ export default function LibraryScreen() {
                     </Text>
                   </View>
                   <View style={[styles.box, on && styles.boxOn]}>
-                    {on && (
-                      <Animated.View entering={FadeIn.duration(260)}>
-                        <CheckIcon />
-                      </Animated.View>
-                    )}
+                    {on && <DrawnCheck />}
                   </View>
                 </Pressable>
               </Animated.View>
@@ -172,7 +174,7 @@ export default function LibraryScreen() {
           <CustomExercise
             initialName={query.trim()}
             initialMuscle={muscle}
-            onCreate={(name, m) => createCustomExercise(db, { name, muscle: m }).then(onCreated)}
+            onCreate={(name, m, media) => createCustomExercise(db, { name, muscle: m, media }).then(onCreated)}
           />
         </FadeScrollView>
       </View>
@@ -180,7 +182,8 @@ export default function LibraryScreen() {
   );
 }
 
-// "Can't find it?" opens a small form: a name and one muscle. No demo, no equipment.
+// "Can't find it?" opens a small form: a name, one muscle, and a photo or clip of your
+// own if you want a demo for it.
 function CustomExercise({
   initialName,
   initialMuscle,
@@ -188,25 +191,43 @@ function CustomExercise({
 }: {
   initialName: string;
   initialMuscle: Muscle | null;
-  onCreate: (name: string, muscle: Muscle) => Promise<void>;
+  onCreate: (name: string, muscle: Muscle, media: FileMedia | null) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [muscle, setMuscle] = useState<Muscle | null>(null);
+  const [media, setMedia] = useState<FileMedia | null>(null);
   const [busy, setBusy] = useState(false);
 
   // Starts from what was searched and filtered, which is usually what's missing.
   const start = () => {
     setName(initialName);
     setMuscle(initialMuscle);
+    setMedia(null);
     setOpen(true);
+  };
+
+  const attach = async () => {
+    const picked = await pickExerciseMedia();
+    if (!picked) return;
+    if ('problem' in picked) {
+      notify(...PICK_PROBLEMS[picked.problem]);
+      return;
+    }
+    removeExerciseMedia(media); // the one it replaces
+    setMedia(picked.media);
+  };
+
+  const detach = () => {
+    removeExerciseMedia(media);
+    setMedia(null);
   };
 
   if (!open) {
     return (
       <Pressable accessibilityRole="button" onPress={start} style={styles.customLink}>
         <Text style={styles.rowName}>Can't find it? Create a custom exercise</Text>
-        <Text style={styles.meta}>Custom exercises have no demo.</Text>
+        <Text style={styles.meta}>Add your own photo, GIF or short clip as its demo.</Text>
       </Pressable>
     );
   }
@@ -216,7 +237,7 @@ function CustomExercise({
     if (!ready) return;
     setBusy(true);
     try {
-      await onCreate(name, muscle);
+      await onCreate(name, muscle, media);
       setOpen(false);
     } finally {
       setBusy(false);
@@ -245,8 +266,41 @@ function CustomExercise({
           />
         ))}
       </View>
+      <Text style={styles.label}>Demo · optional</Text>
+      <View style={styles.mediaRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={media ? 'Change the photo or clip' : 'Add a photo, GIF or clip'}
+          onPress={attach}
+          style={styles.mediaPick}
+        >
+          {media ? <ExerciseThumb media={media} /> : <ImageIcon size={size.iconMd} />}
+          <View style={styles.rowText}>
+            <Text style={styles.rowName}>{media ? 'Tap to change' : 'Add a photo, GIF or clip'}</Text>
+            <Text style={styles.meta}>
+              {media
+                ? media.kind === 'video'
+                  ? 'Clip · plays silent, on a loop'
+                  : 'Photo'
+                : 'From your gallery. Stays on this phone.'}
+            </Text>
+          </View>
+        </Pressable>
+        {media && (
+          <Pressable accessibilityRole="button" onPress={detach} style={styles.cancel}>
+            <Text style={styles.cancelLabel}>Remove</Text>
+          </Pressable>
+        )}
+      </View>
       <View style={styles.customActions}>
-        <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.cancel}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            detach();
+            setOpen(false);
+          }}
+          style={styles.cancel}
+        >
           <Text style={styles.cancelLabel}>Cancel</Text>
         </Pressable>
         <SmallButton label="Create" onPress={create} disabled={!ready} raised />
@@ -281,6 +335,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: size.divider,
     borderBottomColor: colors.hairline,
   },
+  rowPressed: { opacity: 0.6 },
   rowText: { flex: 1 },
   rowName: { ...type.bodyStrong, color: colors.ink },
   box: {
@@ -303,6 +358,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   muscleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space[2] },
+  mediaRow: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  mediaPick: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[3],
+    minHeight: size.buttonPrimary,
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceRaised,
+  },
   customActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

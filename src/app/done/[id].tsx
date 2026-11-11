@@ -5,8 +5,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { Keyframe, ReduceMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { OutlineButton } from '@/components/Buttons';
+import { ShareIcon } from '@/components/Icons';
 import { getSession, listSetLogs, newBestsIn } from '@/db/sessions';
 import { formatClock } from '@/lib/dates';
+import { haptic } from '@/lib/haptics';
 import { easeOut, rise, webSafe } from '@/lib/motion';
 import { colors, motion, space, type } from '@/theme';
 
@@ -38,6 +41,7 @@ export default function DoneScreen() {
         minutes: formatClock((session?.finishedAt ?? Date.now()) - (session?.startedAt ?? Date.now())),
         bests: bests.length,
       });
+      haptic.success();
     })();
   }, [db, id]);
 
@@ -64,9 +68,16 @@ export default function DoneScreen() {
             </Animated.View>
           )}
         </View>
-        <Animated.Text entering={fadeIn(1200)} style={styles.hint}>
-          Tap to close
-        </Animated.Text>
+        <Animated.View entering={fadeIn(1200)} style={styles.foot}>
+          {summary && summary.sets > 0 && (
+            <OutlineButton
+              label="Share this session"
+              icon={<ShareIcon color={colors.ink} />}
+              onPress={() => router.replace({ pathname: '/session/[id]', params: { id } })}
+            />
+          )}
+          <Text style={styles.hint}>Tap anywhere to close</Text>
+        </Animated.View>
       </SafeAreaView>
     </Pressable>
   );
@@ -80,5 +91,6 @@ const styles = StyleSheet.create({
   lines: { alignItems: 'center', gap: space[1] },
   meta: { ...type.caption, color: colors.inkMuted, textAlign: 'center' },
   best: { ...type.captionStrong, color: colors.redText },
+  foot: { gap: space[4] },
   hint: { ...type.labelWide, color: colors.inkMuted, textAlign: 'center' },
 });

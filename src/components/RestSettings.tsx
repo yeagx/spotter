@@ -149,6 +149,7 @@ function StepButton({ label, a11y, disabled, onPress }: { label: string; a11y: s
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
+      haptic="select"
       style={styles.step}
     >
       <Text style={[styles.stepLabel, disabled && styles.stepLabelDisabled]}>{label}</Text>

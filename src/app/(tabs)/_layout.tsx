@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BodyIcon, PlanIcon, TodayIcon } from '@/components/TabIcons';
+import { BodyIcon, PlanIcon, TodayIcon, playTabIcon } from '@/components/TabIcons';
 import { Tour } from '@/components/Tour';
 import { getMeta, setMeta } from '@/db/meta';
 import { getSplit } from '@/db/plan';
 import { useContentColumn } from '@/hooks/useContentColumn';
+import { haptic } from '@/lib/haptics';
 import { markNotesSeen, unseenNotes } from '@/lib/whatsNew';
 import { useProfile } from '@/state/profile';
 import { colors, size, space, type } from '@/theme';
@@ -76,6 +77,12 @@ export default function TabsLayout() {
   return (
     <>
       <Tabs
+        screenListeners={({ route }) => ({
+          tabPress: () => {
+            haptic.select();
+            playTabIcon(route.name);
+          },
+        })}
         screenOptions={{
           headerShown: false,
           sceneStyle: { backgroundColor: colors.ground },

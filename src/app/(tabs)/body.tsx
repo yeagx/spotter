@@ -1,11 +1,18 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { PrimaryButton, SmallButton } from '@/components/Buttons';
 import { Chip } from '@/components/Chip';
+import { CountUp } from '@/components/CountUp';
 import { ChevronRightIcon } from '@/components/Icons';
 import { Screen } from '@/components/Screen';
 import { SlantBar } from '@/components/Slant';
@@ -15,10 +22,10 @@ import { getSplit } from '@/db/plan';
 import { STATS, barScale, positionOn, rangeFor, standing, type Range, type StatDef } from '@/lib/body';
 import { estimateCalories, restingBurn } from '@/lib/calories';
 import { formatDay, monthKey, monthName } from '@/lib/dates';
-import { rise, stagger } from '@/lib/motion';
+import { easeOut, rise, stagger } from '@/lib/motion';
 import { formatNumber } from '@/lib/units';
 import { useProfile, useUnits } from '@/state/profile';
-import { colors, radius, size, space, type } from '@/theme';
+import { colors, motion, radius, size, space, type } from '@/theme';
 
 const TAB_EDGES = ['top', 'right', 'left'] as const;
 
@@ -105,9 +112,14 @@ export default function BodyScreen() {
         <Animated.View entering={rise(90)} style={styles.titleBlock}>
           <Text style={styles.label}>Weight</Text>
           <View style={styles.hero}>
-            <Text style={styles.heroNumber} numberOfLines={1} adjustsFontSizeToFit>
-              {units.show(latest.weight)}
-            </Text>
+            <CountUp
+              value={Number(units.show(latest.weight))}
+              format={(n) => formatNumber(n)}
+              delay={90}
+              style={styles.heroNumber}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            />
             <Text style={styles.heroUnit}>
               {weightUnit}
               {latest.bmi ? ` · BMI ${formatNumber(latest.bmi)}` : ''}
@@ -157,7 +169,7 @@ export default function BodyScreen() {
           <View style={styles.titleBlock}>
             <Text style={styles.label}>Daily target</Text>
             <View style={styles.valueRow}>
-              <Text style={styles.statNumber}>{kcal}</Text>
+              <CountUp value={kcal} delay={520} style={styles.statNumber} />
               <Text style={styles.meta}>kcal</Text>
             </View>
           </View>
@@ -185,7 +197,7 @@ export default function BodyScreen() {
               ))}
             </View>
           )}
-          <TrendChart values={points.map((p) => display(p.value))} />
+          <TrendChart values={points.map((p) => display(p.value))} delay={600} />
           <Text style={styles.meta}>
             {points.length < 2
               ? 'Your trend starts at your next check-in.'
@@ -202,7 +214,11 @@ export default function BodyScreen() {
                 accessibilityRole="button"
                 accessibilityHint="Edit this check-in"
                 onPress={() => router.push({ pathname: '/checkin', params: { id: c.id } })}
-                style={[styles.historyRow, i < list.length - 1 && styles.divider]}
+                style={({ pressed }) => [
+                  styles.historyRow,
+                  i < list.length - 1 && styles.divider,
+                  pressed && styles.pressed,
+                ]}
               >
                 <Text style={styles.historyDate}>{formatDay(c.date)}</Text>
                 <Text style={styles.historyValue}>
@@ -264,13 +280,27 @@ function StatCard({ stat, value, range, delay, format, convert, unit }: StatCard
         {range && (
           <View style={[styles.normal, { left: `${left * 100}%`, width: `${(right - left) * 100}%` }]} />
         )}
-        {value !== null && scale && (
-          <View style={[styles.marker, { left: `${positionOn(value, scale) * 100}%` }]}>
-            <SlantBar width={MARKER.width} height={MARKER.height} color={colors.ink} />
-          </View>
-        )}
+        {value !== null && scale && <Marker at={positionOn(value, scale)} delay={delay + 200} />}
       </View>
       <Text style={styles.meta}>{caption}</Text>
+    </Animated.View>
+  );
+}
+
+// "You" on a stat's range bar. It slides out from the low end to where you stand, and
+// moves along the bar when a new check-in changes the number.
+function Marker({ at, delay }: { at: number; delay: number }) {
+  const reduceMotion = useReducedMotion();
+  const percent = useSharedValue(reduceMotion ? at * 100 : 0);
+  useEffect(() => {
+    percent.value = reduceMotion
+      ? at * 100
+      : withDelay(delay, withTiming(at * 100, { duration: motion.barMs, easing: easeOut }));
+  }, [at, delay, percent, reduceMotion]);
+  const style = useAnimatedStyle(() => ({ left: `${percent.value}%` }));
+  return (
+    <Animated.View style={[styles.marker, style]}>
+      <SlantBar width={MARKER.width} height={MARKER.height} color={colors.ink} />
     </Animated.View>
   );
 }
@@ -337,6 +367,7 @@ const styles = StyleSheet.create({
     paddingVertical: space[2],
   },
   divider: { borderBottomWidth: size.divider, borderBottomColor: colors.hairline },
+  pressed: { opacity: 0.6 },
   historyDate: { ...type.bodyStrong, color: colors.ink, minWidth: size.thumb },
   historyValue: { ...type.body, color: colors.inkMuted, flex: 1 },
 });

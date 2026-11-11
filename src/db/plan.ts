@@ -42,7 +42,8 @@ type DayExerciseRow = ExerciseRow & {
 
 const DAY_EXERCISE_SELECT = `
   SELECT de.id AS de_id, de.split_day_id, de.sets, de.reps_min, de.reps_max, de.rest_sec,
-         e.id, e.name, e.muscle, e.equipment, e.cues_json, e.media_json, e.targets_json, e.is_custom
+         e.id, e.name, e.muscle, e.equipment, e.cues_json, e.media_json, e.targets_json, e.note,
+         e.is_custom
   FROM day_exercise de
   JOIN exercise e ON e.id = de.exercise_id`;
 
