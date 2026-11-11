@@ -10,6 +10,47 @@ export type WhatsNewEntry = { version: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: '1.4.0',
+    items: [
+      {
+        title: 'A bigger library',
+        line: '79 more exercises, each with a demo: overhead cable extension, deadlift, pec deck, shrugs, chin-up and the rest of the basics.',
+      },
+      {
+        title: 'Your own demos',
+        line: 'A custom exercise takes a photo, GIF or short clip from your gallery. It plays silent, on a loop, like the rest.',
+      },
+      {
+        title: 'Swap for today',
+        line: 'Machine taken? Tap the arrows beside an exercise in a workout and pick another. Your plan stays as it is.',
+      },
+      {
+        title: 'A note that stays',
+        line: 'Seat 4, narrow grip. Write it once on any exercise and it’s there every time you train it.',
+      },
+      {
+        title: 'Plates, worked out',
+        line: 'On barbell lifts the workout shows what goes on each side. Tap it to change the bar.',
+      },
+      {
+        title: 'How a lift is going',
+        line: 'Each exercise page has its trend and your last sessions, set by set.',
+      },
+      {
+        title: 'A card for today',
+        line: 'Finish a session and share it as a card: what you moved, each top set, new bests in red.',
+      },
+      {
+        title: 'From your scale',
+        line: 'On Check in, Fill from Health Connect brings in your latest weigh-in. Android only.',
+      },
+      {
+        title: 'A little more feel',
+        line: 'Ticks draw themselves, numbers run up, charts draw in, and the app taps back when you press.',
+      },
+    ],
+  },
+  {
     version: '1.3.0',
     items: [
       {

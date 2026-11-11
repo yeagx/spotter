@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/yeagx/spotter/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/yeagx/spotter?style=flat-square&color=E70B16&labelColor=161616&label=release" /></a>
-  <img alt="Android" src="https://img.shields.io/badge/Android-7.0%2B-FFFFFF?style=flat-square&labelColor=161616" />
+  <img alt="Android" src="https://img.shields.io/badge/Android-8.0%2B-FFFFFF?style=flat-square&labelColor=161616" />
   <img alt="Expo SDK 58" src="https://img.shields.io/badge/Expo-SDK%2058-FFFFFF?style=flat-square&labelColor=161616&logo=expo&logoColor=white" />
   <img alt="Offline first" src="https://img.shields.io/badge/data-on%20your%20phone-FFFFFF?style=flat-square&labelColor=161616" />
 </p>
@@ -36,7 +36,8 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 **Plan**
 - A named split (Upper / Lower, Full Body, whatever you run) pinned to the days you train.
 - Each day holds exercises with sets, a rep range like `8–12`, and rest time.
-- 56 curated exercises to pick from, with search, muscle filters and multi-select. Custom exercises when something's missing.
+- 134 curated exercises to pick from, with search, muscle filters and multi-select.
+- Something still missing? Make a custom exercise and give it your own photo, GIF or short clip as its demo.
 - Every exercise says exactly what it works ("Upper chest · also Front delts, Triceps"), and search finds muscles too.
 - Plan days are pinned to weekdays, but life isn't: a day that slipped by stays open until the week ends. On a rest day it becomes your session; on a training day it waits quietly under today's. Any day can also be started from Plan.
 
@@ -47,21 +48,26 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 - A rest timer between sets, and a full-screen countdown between exercises (+15 s or skip). Both lengths can be set in Profile, or follow each exercise's rest from the plan.
 - When rest ends with the phone locked or in a pocket, a short sound and two buzzes tell you (or just the buzz, or nothing).
 - Any set can be removed from today's session, ticked or not; the plan stays as it is.
+- Machine taken? Swap an exercise for another, for this session only.
+- On barbell lifts, the plates for each side are worked out for the set you're on. Tap to change the bar.
+- A note per exercise ("seat 4, narrow grip") that shows up every time you train it.
 - New bests are called out as they happen. Sessions survive the app being closed and can be resumed.
 
 **See how it's done**
 - Every library exercise has a silent demo loop, half speed, and three plain form cues.
-- Your best lift and last six sessions sit under the demo.
+- Your best lift, a trend line and your last sessions, set by set, sit under the demo.
 
 **Track**
 - Check-ins take weight, and anything else your scale or InBody-style scan gives: BMI, body fat, muscle, water, bone, BMR.
 - Each stat is shown against the normal range for your sex, in words ("In normal range · 8–21") as well as on a bar.
 - A trend line for weight, body fat and muscle.
+- On Android, a check-in can be filled from Health Connect, where smart scales put their readings. Read-only, and only when you ask.
 - A daily calorie target estimated from your BMR, goal and training days, or set your own.
 
-**Monthly recap**
-- Sessions done against planned, best lift, new bests, and body-fat change when there are two check-ins to compare.
-- Save it to your gallery or share it, with or without your name and photo.
+**Share it**
+- Every finished session has a card: what you moved, each exercise's top set, new bests in red.
+- The monthly recap: sessions done against planned, best lift, new bests, and body-fat change when there are two check-ins to compare.
+- Save either to your gallery or share it, with or without your name and photo.
 
 **On your home screen** (Android)
 - **Today**: the day's first exercises with last weights, the week as slanted bars, and Start.
@@ -81,7 +87,7 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 2. Open the file. If Android asks, allow installs from your browser.
 3. Spotter opens on a short welcome and four quick questions, then a guided tour of the three tabs.
 
-Requires Android 7.0 or later. iOS and the app stores will come later.
+Requires Android 8.0 or later. iOS and the app stores will come later.
 
 ## Design
 
@@ -108,6 +114,7 @@ The full brand book, tokens and approved mockups live in [`design/`](design/).
 | Keyboard | `react-native-keyboard-controller`, so pinned buttons ride the keyboard frame by frame |
 | Media | Demo player that's source-agnostic: photo frames today, filmed `expo-video` loops later with no UI change |
 | Sharing | `react-native-view-shot` · `expo-sharing` · `expo-media-library` · `expo-clipboard` |
+| Health | [`react-native-health-connect`](https://github.com/matinzd/react-native-health-connect), read-only, for filling a check-in from a scale |
 | Alerts | `expo-notifications` (alarm-clock delivery, so a rest alert lands on time with the screen off) · `expo-audio` |
 | Widgets | [`react-native-android-widget`](https://github.com/sAleksovski/react-native-android-widget), drawn from the same SQLite data as the screens |
 | Builds | [EAS Build](https://docs.expo.dev/build/introduction/) → APK attached to GitHub Releases |
@@ -123,7 +130,7 @@ npm install
 npx expo start
 ```
 
-Scan the QR code with Expo Go. Everything runs there except the home screen widgets, which need a build that includes their native module (`eas build --profile development`, or the release APK). Other useful commands:
+Scan the QR code with Expo Go. Everything runs there except the home screen widgets and the Health Connect import, which need a build that includes their native modules (`eas build --profile development`, or the release APK). Other useful commands:
 
 ```bash
 npx expo start --web   # browser preview (SQLite runs on WebAssembly there)
@@ -146,7 +153,7 @@ src/
   state/          The shared profile and units
   widgets/        Android home screen widgets, their data and the Best lift picker
   theme.ts        Every colour, size and type style, from design/tokens.json
-assets/           Icons, the logo and the 56 exercises' demo frames
+assets/           Icons, the logo and the 134 exercises' demo frames
 design/           Brand book, tokens, mockups, logo
 scripts/          Exercise import and brand-asset generation
 ```
