@@ -35,7 +35,8 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 
 **Plan**
 - A named split (Upper / Lower, Full Body, whatever you run) pinned to the days you train.
-- Each day holds exercises with sets, a rep range like `8–12`, and rest time.
+- Each day holds exercises with sets, a target and rest time: a rep range like `8–12`, seconds for a plank, minutes for the treadmill.
+- Reorder a day's exercises any time; workouts follow that order.
 - 134 curated exercises to pick from, with search, muscle filters and multi-select.
 - Something still missing? Make a custom exercise and give it your own photo, GIF or short clip as its demo.
 - Every exercise says exactly what it works ("Upper chest · also Front delts, Triceps"), and search finds muscles too.
@@ -45,10 +46,11 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 - Today opens on what's planned, with the weight you lifted last time.
 - A short "locked in." moment when a session starts, then one exercise at a time.
 - Sets are pre-filled from your last session. Tick to log, with a soft haptic tap.
+- Each exercise logs what makes sense for it: kg × reps, reps only, time, or time and distance for cardio.
 - A rest timer between sets, and a full-screen countdown between exercises (+15 s or skip). Both lengths can be set in Profile, or follow each exercise's rest from the plan.
 - When rest ends with the phone locked or in a pocket, a short sound and two buzzes tell you (or just the buzz, or nothing).
 - Any set can be removed from today's session, ticked or not; the plan stays as it is.
-- Machine taken? Swap an exercise for another, for this session only.
+- Machine taken? Do another exercise from today's session first, or swap in a different one, for this session only.
 - On barbell lifts, the plates for each side are worked out for the set you're on. Tap to change the bar.
 - A note per exercise ("seat 4, narrow grip") that shows up every time you train it.
 - New bests are called out as they happen. Sessions survive the app being closed and can be resumed.
