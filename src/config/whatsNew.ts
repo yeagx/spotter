@@ -10,6 +10,23 @@ export type WhatsNewEntry = { version: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: '1.5.0',
+    items: [
+      {
+        title: 'Not everything is kg × reps',
+        line: 'Treadmill and bike log minutes and distance, a plank logs seconds, crunches just reps. Bests and history follow.',
+      },
+      {
+        title: 'Do another one first',
+        line: 'Swap in a workout now lists the rest of today’s session too. Pick one and it moves up; this one comes right after.',
+      },
+      {
+        title: 'Your order',
+        line: 'Edit day has Reorder. Move the cardio to the start and every workout follows it.',
+      },
+    ],
+  },
+  {
     version: '1.4.0',
     items: [
       {

@@ -45,13 +45,14 @@ async function seedLibrary(db: SQLiteDatabase) {
       };
       await db.runAsync(
         `INSERT INTO exercise
-           (id, name, muscle, equipment, cues_json, media_json, targets_json, is_custom,
+           (id, name, muscle, equipment, tracking, cues_json, media_json, targets_json, is_custom,
             created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
          ON CONFLICT (id) DO UPDATE SET
            name = excluded.name,
            muscle = excluded.muscle,
            equipment = excluded.equipment,
+           tracking = excluded.tracking,
            cues_json = excluded.cues_json,
            media_json = excluded.media_json,
            targets_json = excluded.targets_json,
@@ -61,6 +62,7 @@ async function seedLibrary(db: SQLiteDatabase) {
         e.name,
         e.muscle,
         e.equipment,
+        e.tracking ?? 'weight',
         JSON.stringify(e.cues),
         JSON.stringify(media),
         TARGETS[e.id] ? JSON.stringify(TARGETS[e.id]) : null,

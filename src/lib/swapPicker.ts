@@ -8,8 +8,15 @@ import type { Exercise } from '@/db/types';
 export type SwapRequest = {
   current: Exercise; // what's on the workout screen now
   planned: Exercise; // what the plan says; offered first once something else is swapped in
-  takenIds: string[]; // already in this session, so not offered
-  onPick: (exercise: Exercise) => void | Promise<void>;
+  takenIds: string[]; // already in this session, so not offered from the library
+  // False once a set is ticked: those sets belong to this exercise, so it can only
+  // trade places with another one from the session.
+  canReplace: boolean;
+  // The session's other exercises still to do, in the order they'd come. `key` is the
+  // day_exercise id; `note` says where it stands ("Up next", "1 of 3 sets done").
+  session: { key: string; exercise: Exercise; note: string }[];
+  onSwitch: (key: string) => void; // do that one now; this one comes right after
+  onPick: (exercise: Exercise) => void | Promise<void>; // replace this one with it
 };
 
 let pending: SwapRequest | null = null;

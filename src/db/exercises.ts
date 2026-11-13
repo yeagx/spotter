@@ -1,13 +1,14 @@
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import type { Equipment, Exercise, ExerciseMedia, Muscle } from './types';
+import type { Equipment, Exercise, ExerciseMedia, Muscle, Tracking } from './types';
 
 export type ExerciseRow = {
   id: string;
   name: string;
   muscle: string;
   equipment: string;
+  tracking: string;
   cues_json: string;
   media_json: string | null;
   targets_json: string | null;
@@ -21,6 +22,7 @@ export function toExercise(row: ExerciseRow): Exercise {
     name: row.name,
     muscle: row.muscle as Muscle,
     equipment: row.equipment as Equipment,
+    tracking: row.tracking as Tracking,
     cues: JSON.parse(row.cues_json),
     media: row.media_json ? JSON.parse(row.media_json) : null,
     targets: row.targets_json ? JSON.parse(row.targets_json) : null,
@@ -53,7 +55,12 @@ export async function getExercise(db: SQLiteDatabase, id: string): Promise<Exerc
 // `media` is a photo or clip the user attached, if any.
 export async function createCustomExercise(
   db: SQLiteDatabase,
-  { name, muscle, media = null }: { name: string; muscle: Muscle; media?: ExerciseMedia | null },
+  {
+    name,
+    muscle,
+    tracking,
+    media = null,
+  }: { name: string; muscle: Muscle; tracking: Tracking; media?: ExerciseMedia | null },
 ): Promise<Exercise> {
   const now = Date.now();
   const exercise: Exercise = {
@@ -61,6 +68,7 @@ export async function createCustomExercise(
     name: name.trim(),
     muscle,
     equipment: 'other',
+    tracking,
     cues: [],
     media,
     targets: null,
@@ -69,12 +77,14 @@ export async function createCustomExercise(
   };
   await db.runAsync(
     `INSERT INTO exercise
-       (id, name, muscle, equipment, cues_json, media_json, is_custom, created_at, updated_at)
-     VALUES (?, ?, ?, ?, '[]', ?, 1, ?, ?)`,
+       (id, name, muscle, equipment, tracking, cues_json, media_json, is_custom, created_at,
+        updated_at)
+     VALUES (?, ?, ?, ?, ?, '[]', ?, 1, ?, ?)`,
     exercise.id,
     exercise.name,
     exercise.muscle,
     exercise.equipment,
+    exercise.tracking,
     media ? JSON.stringify(media) : null,
     now,
     now,

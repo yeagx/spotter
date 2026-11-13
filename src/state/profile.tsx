@@ -2,7 +2,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { getProfile, updateProfile, type Profile } from '@/db/profile';
-import { formatWeight, kgToUnit, unitToKg } from '@/lib/units';
+import { distanceUnit, formatDistance, formatWeight, kgToUnit, mToUnit, unitToKg, unitToM } from '@/lib/units';
 
 type ProfileState = {
   profile: Profile | null | undefined; // undefined while loading, null before onboarding
@@ -52,6 +52,10 @@ export function useUnits() {
       show: (kg: number) => formatWeight(kg, units),
       fromKg: (kg: number) => kgToUnit(kg, units),
       toKg: (value: number) => unitToKg(value, units),
+      dist: distanceUnit(units),
+      showDist: (m: number) => formatDistance(m, units),
+      fromM: (m: number) => mToUnit(m, units),
+      toM: (value: number) => unitToM(value, units),
     }),
     [units],
   );

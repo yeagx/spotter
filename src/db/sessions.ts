@@ -2,6 +2,7 @@ import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { dataChanged } from './changes';
+import type { Tracking } from './types';
 
 // A workout session and the sets logged in it. All weights are kg.
 
@@ -12,20 +13,50 @@ export type Session = {
   finishedAt: number | null;
 };
 
-export type SetLog = {
+// One logged set. Fields an exercise doesn't track are 0 (see Tracking): a treadmill
+// set is { kg: 0, reps: 0, sec: 1200, m: 3100 }.
+export type Lift = { kg: number; reps: number; sec: number; m: number };
+
+export type SetLog = Lift & {
   id: string;
   exerciseId: string;
   setIndex: number;
-  kg: number;
-  reps: number;
   doneAt: number;
 };
 
-// One set, as compared for "best": heavier wins, then more reps at that weight.
-export type Lift = { kg: number; reps: number };
+// Whether set `a` is better than `b`, by what the exercise tracks: heavier then more
+// reps; most reps; longest; farthest then longest.
+export function beats(a: Lift, b: Lift | null, tracking: Tracking): boolean {
+  if (!b) return true;
+  const order: [number, number][] =
+    tracking === 'reps'
+      ? [[a.reps, b.reps], [a.kg, b.kg]]
+      : tracking === 'time'
+        ? [[a.sec, b.sec]]
+        : tracking === 'cardio'
+          ? [[a.m, b.m], [a.sec, b.sec]]
+          : [[a.kg, b.kg], [a.reps, b.reps]];
+  for (const [x, y] of order) if (x !== y) return x > y;
+  return false;
+}
 
-export const beats = (a: Lift, b: Lift | null) =>
-  !b || a.kg > b.kg || (a.kg === b.kg && a.reps > b.reps);
+// The same order in SQL, best first. `t` is the set_log alias, e.g. "l.".
+function bestOrder(tracking: Tracking, t = '') {
+  const sec = `COALESCE(${t}duration_sec, 0) DESC`;
+  if (tracking === 'reps') return `${t}reps DESC, ${t}kg DESC`;
+  if (tracking === 'time') return sec;
+  if (tracking === 'cardio') return `COALESCE(${t}distance_m, 0) DESC, ${sec}`;
+  return `${t}kg DESC, ${t}reps DESC`;
+}
+
+// A set's numbers as a Lift, from set_log aliased as `t`.
+const liftCols = (t = '') =>
+  `${t}kg AS kg, ${t}reps AS reps, COALESCE(${t}duration_sec, 0) AS sec, COALESCE(${t}distance_m, 0) AS m`;
+
+async function trackingOf(db: SQLiteDatabase, exerciseId: string): Promise<Tracking> {
+  const row = await db.getFirstAsync<{ tracking: Tracking }>('SELECT tracking FROM exercise WHERE id = ?', exerciseId);
+  return row?.tracking ?? 'weight';
+}
 
 type SessionRow = {
   id: string;
@@ -40,6 +71,8 @@ type SetLogRow = {
   set_index: number;
   kg: number;
   reps: number;
+  duration_sec: number | null;
+  distance_m: number | null;
   done_at: number;
 };
 
@@ -56,6 +89,8 @@ const toSetLog = (r: SetLogRow): SetLog => ({
   setIndex: r.set_index,
   kg: r.kg,
   reps: r.reps,
+  sec: r.duration_sec ?? 0,
+  m: r.distance_m ?? 0,
   doneAt: r.done_at,
 });
 
@@ -129,11 +164,14 @@ export async function saveSetLog(
   const now = Date.now();
   await db.runAsync(
     `INSERT INTO set_log
-       (id, session_id, exercise_id, set_index, kg, reps, done_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       (id, session_id, exercise_id, set_index, kg, reps, duration_sec, distance_m, done_at,
+        created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (id) DO UPDATE SET
        kg = excluded.kg,
        reps = excluded.reps,
+       duration_sec = excluded.duration_sec,
+       distance_m = excluded.distance_m,
        updated_at = excluded.updated_at`,
     log.id,
     sessionId,
@@ -141,6 +179,8 @@ export async function saveSetLog(
     log.setIndex,
     log.kg,
     log.reps,
+    log.sec || null,
+    log.m || null,
     log.doneAt ?? now,
     now,
     now,
@@ -223,7 +263,7 @@ export async function lastSets(
   excludeSessionId: string | null = null,
 ): Promise<Lift[]> {
   return db.getAllAsync<Lift>(
-    `SELECT kg, reps FROM set_log
+    `SELECT ${liftCols()} FROM set_log
      WHERE exercise_id = $ex
        AND session_id = (
          SELECT session_id FROM set_log
@@ -240,10 +280,11 @@ export async function bestLift(
   exerciseId: string,
   excludeSessionId: string | null = null,
 ): Promise<Lift | null> {
+  const tracking = await trackingOf(db, exerciseId);
   return db.getFirstAsync<Lift>(
-    `SELECT kg, reps FROM set_log
+    `SELECT ${liftCols()} FROM set_log
      WHERE exercise_id = $ex AND ($skip IS NULL OR session_id != $skip)
-     ORDER BY kg DESC, reps DESC LIMIT 1`,
+     ORDER BY ${bestOrder(tracking)} LIMIT 1`,
     { $ex: exerciseId, $skip: excludeSessionId },
   );
 }
@@ -256,10 +297,11 @@ export async function exerciseHistory(
   exerciseId: string,
   limit = 6,
 ): Promise<SessionTop[]> {
-  const rows = await db.getAllAsync<{ session_id: string; kg: number; reps: number; done_at: number }>(
-    `SELECT session_id, kg, reps, done_at FROM (
-       SELECT session_id, kg, reps, done_at,
-              ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY kg DESC, reps DESC) AS rank,
+  const tracking = await trackingOf(db, exerciseId);
+  const rows = await db.getAllAsync<Lift & { session_id: string; done_at: number }>(
+    `SELECT session_id, kg, reps, sec, m, done_at FROM (
+       SELECT session_id, ${liftCols()}, done_at,
+              ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY ${bestOrder(tracking)}) AS rank,
               MAX(done_at) OVER (PARTITION BY session_id) AS last_at
        FROM set_log WHERE exercise_id = ?)
      WHERE rank = 1
@@ -269,7 +311,7 @@ export async function exerciseHistory(
     limit,
   );
   return rows
-    .map((r) => ({ sessionId: r.session_id, kg: r.kg, reps: r.reps, doneAt: r.done_at }))
+    .map((r) => ({ sessionId: r.session_id, kg: r.kg, reps: r.reps, sec: r.sec, m: r.m, doneAt: r.done_at }))
     .reverse();
 }
 
@@ -282,8 +324,8 @@ export async function exerciseSessions(
   exerciseId: string,
   limit = 5,
 ): Promise<ExerciseSession[]> {
-  const rows = await db.getAllAsync<{ session_id: string; kg: number; reps: number; done_at: number }>(
-    `SELECT session_id, kg, reps, done_at FROM set_log
+  const rows = await db.getAllAsync<Lift & { session_id: string; done_at: number }>(
+    `SELECT session_id, ${liftCols()}, done_at FROM set_log
      WHERE exercise_id = $ex
        AND session_id IN (
          SELECT session_id FROM set_log WHERE exercise_id = $ex
@@ -295,7 +337,7 @@ export async function exerciseSessions(
   for (const r of rows) {
     const s = bySession.get(r.session_id) ?? { sessionId: r.session_id, at: 0, sets: [] };
     s.at = Math.max(s.at, r.done_at);
-    s.sets.push({ kg: r.kg, reps: r.reps });
+    s.sets.push({ kg: r.kg, reps: r.reps, sec: r.sec, m: r.m });
     bySession.set(r.session_id, s);
   }
   return [...bySession.values()].sort((a, b) => b.at - a.at);
@@ -340,11 +382,46 @@ export async function saveSwap(
   );
 }
 
+// The order of this session's exercises once the user has moved them (did the cardio
+// first, switched with one later in the day). Keyed by day_exercise id; empty when the
+// session follows the plan.
+export async function getSessionOrder(db: SQLiteDatabase, sessionId: string): Promise<Map<string, number>> {
+  const rows = await db.getAllAsync<{ day_exercise_id: string; position: number }>(
+    'SELECT day_exercise_id, position FROM session_order WHERE session_id = ?',
+    sessionId,
+  );
+  return new Map(rows.map((r) => [r.day_exercise_id, r.position]));
+}
+
+// Saves the whole order at once, so it's never half old, half new.
+export async function saveSessionOrder(
+  db: SQLiteDatabase,
+  sessionId: string,
+  dayExerciseIds: string[],
+): Promise<void> {
+  const now = Date.now();
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM session_order WHERE session_id = ?', sessionId);
+    for (const [position, id] of dayExerciseIds.entries()) {
+      await db.runAsync(
+        `INSERT INTO session_order (session_id, day_exercise_id, position, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        sessionId,
+        id,
+        position,
+        now,
+        now,
+      );
+    }
+  });
+}
+
 export type SummaryLine = {
   exerciseId: string;
   name: string;
+  tracking: Tracking;
   sets: number;
-  top: Lift; // heaviest set, then most reps at that weight
+  top: Lift; // the best set, by what the exercise tracks
   isBest: boolean; // beat every earlier session
 };
 
@@ -363,8 +440,8 @@ export async function sessionSummary(db: SQLiteDatabase, sessionId: string): Pro
   const day = session.splitDayId
     ? await db.getFirstAsync<{ name: string }>('SELECT name FROM split_day WHERE id = ?', session.splitDayId)
     : null;
-  const rows = await db.getAllAsync<{ exercise_id: string; name: string; kg: number; reps: number }>(
-    `SELECT l.exercise_id, e.name, l.kg, l.reps FROM set_log l
+  const rows = await db.getAllAsync<Lift & { exercise_id: string; name: string; tracking: Tracking }>(
+    `SELECT l.exercise_id, e.name, e.tracking, ${liftCols('l.')} FROM set_log l
      JOIN exercise e ON e.id = l.exercise_id
      WHERE l.session_id = ? ORDER BY l.done_at`,
     sessionId,
@@ -375,17 +452,19 @@ export async function sessionSummary(db: SQLiteDatabase, sessionId: string): Pro
   for (const r of rows) {
     volumeKg += r.kg * r.reps;
     const line = lines.get(r.exercise_id);
+    const lift = { kg: r.kg, reps: r.reps, sec: r.sec, m: r.m };
     if (!line) {
       lines.set(r.exercise_id, {
         exerciseId: r.exercise_id,
         name: r.name,
+        tracking: r.tracking,
         sets: 1,
-        top: { kg: r.kg, reps: r.reps },
+        top: lift,
         isBest: bests.has(r.exercise_id),
       });
     } else {
       line.sets += 1;
-      if (beats(r, line.top)) line.top = { kg: r.kg, reps: r.reps };
+      if (beats(lift, line.top, r.tracking)) line.top = lift;
     }
   }
   return {
@@ -397,15 +476,16 @@ export async function sessionSummary(db: SQLiteDatabase, sessionId: string): Pro
   };
 }
 
-// Heaviest weight from the last session per exercise, for Today's list.
+// Heaviest weight from the last session per exercise, for Today's list. Exercises done
+// without weight (bodyweight, cardio) aren't listed.
 export async function lastTopKg(
   db: SQLiteDatabase,
   exerciseIds: string[],
 ): Promise<Map<string, number>> {
   const result = new Map<string, number>();
   for (const id of exerciseIds) {
-    const sets = await lastSets(db, id);
-    if (sets.length) result.set(id, Math.max(...sets.map((s) => s.kg)));
+    const top = Math.max(0, ...(await lastSets(db, id)).map((s) => s.kg));
+    if (top > 0) result.set(id, top);
   }
   return result;
 }
@@ -428,25 +508,27 @@ export async function finishedSessionsBetween(
 // Exercises in which a session beat every earlier session's best. A first-ever
 // session for an exercise sets the mark but isn't counted as a new best.
 export async function newBestsIn(db: SQLiteDatabase, sessionId: string): Promise<string[]> {
-  const rows = await db.getAllAsync<{ exercise_id: string }>(
-    'SELECT DISTINCT exercise_id FROM set_log WHERE session_id = ?',
+  const rows = await db.getAllAsync<{ exercise_id: string; tracking: Tracking }>(
+    `SELECT DISTINCT l.exercise_id, e.tracking FROM set_log l
+     JOIN exercise e ON e.id = l.exercise_id WHERE l.session_id = ?`,
     sessionId,
   );
   const bests: string[] = [];
-  for (const { exercise_id } of rows) {
+  for (const { exercise_id, tracking } of rows) {
     const mine = await db.getFirstAsync<Lift>(
-      'SELECT kg, reps FROM set_log WHERE session_id = ? AND exercise_id = ? ORDER BY kg DESC, reps DESC LIMIT 1',
+      `SELECT ${liftCols()} FROM set_log WHERE session_id = ? AND exercise_id = ?
+       ORDER BY ${bestOrder(tracking)} LIMIT 1`,
       sessionId,
       exercise_id,
     );
     const before = await db.getFirstAsync<Lift>(
-      `SELECT p.kg, p.reps FROM set_log p JOIN session ps ON ps.id = p.session_id
+      `SELECT ${liftCols('p.')} FROM set_log p JOIN session ps ON ps.id = p.session_id
        WHERE p.exercise_id = ? AND ps.started_at < (SELECT started_at FROM session WHERE id = ?)
-       ORDER BY p.kg DESC, p.reps DESC LIMIT 1`,
+       ORDER BY ${bestOrder(tracking, 'p.')} LIMIT 1`,
       exercise_id,
       sessionId,
     );
-    if (mine && before && beats(mine, before)) bests.push(exercise_id);
+    if (mine && before && beats(mine, before, tracking)) bests.push(exercise_id);
   }
   return bests;
 }

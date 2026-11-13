@@ -1,4 +1,4 @@
-import type { Equipment, Muscle } from './types';
+import type { Equipment, Muscle, Tracking } from './types';
 
 // The bundled exercise library, curated from design/exercise-list.md.
 // `id` is Spotter's own and must never change once shipped: plans and logs point at it.
@@ -9,6 +9,7 @@ export type LibraryExercise = {
   name: string;
   muscle: Muscle;
   equipment: Equipment;
+  tracking?: Tracking; // 'weight' when left out
   sourceId: string;
   cues: string[];
 };
@@ -16,7 +17,8 @@ export type LibraryExercise = {
 // Bump when anything below changes, so existing installs pick up the new rows.
 // 2: targets (src/db/targets.ts).
 // 3: 79 more exercises (55 → 134).
-export const LIBRARY_VERSION = 3;
+// 4: tracking (reps only, time, cardio).
+export const LIBRARY_VERSION = 4;
 
 export const LIBRARY: LibraryExercise[] = [
   // Chest
@@ -97,6 +99,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Push-Up',
     muscle: 'chest',
     equipment: 'bodyweight',
+    tracking: 'reps',
     sourceId: 'Pushups',
     cues: [
       'Body in one straight line.',
@@ -279,6 +282,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Inverted Row',
     muscle: 'back',
     equipment: 'bodyweight',
+    tracking: 'reps',
     sourceId: 'Inverted_Row',
     cues: [
       'Body in one straight line.',
@@ -495,6 +499,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Back Extension',
     muscle: 'back',
     equipment: 'bodyweight',
+    tracking: 'reps',
     sourceId: 'Hyperextensions_Back_Extensions',
     cues: [
       'Hips just off the edge of the pad.',
@@ -993,6 +998,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Bench Dip',
     muscle: 'triceps',
     equipment: 'bodyweight',
+    tracking: 'reps',
     sourceId: 'Bench_Dips',
     cues: [
       'Hands on the bench edge, hips close to it.',
@@ -1031,6 +1037,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Bodyweight Squat',
     muscle: 'legs',
     equipment: 'bodyweight',
+    tracking: 'reps',
     sourceId: 'Bodyweight_Squat',
     cues: [
       'Feet shoulder width, chest up.',
@@ -1359,6 +1366,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Crunch',
     muscle: 'core',
     equipment: 'bodyweight',
+    tracking: 'reps',
     sourceId: 'Crunches',
     cues: [
       'Lower back stays on the floor.',
@@ -1371,6 +1379,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Decline Crunch',
     muscle: 'core',
     equipment: 'bodyweight',
+    tracking: 'reps',
     sourceId: 'Decline_Crunch',
     cues: [
       'Feet locked in.',
@@ -1395,6 +1404,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Reverse Crunch',
     muscle: 'core',
     equipment: 'bodyweight',
+    tracking: 'reps',
     sourceId: 'Reverse_Crunch',
     cues: [
       'Knees bent, hands by your sides.',
@@ -1407,6 +1417,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Bicycle Crunch',
     muscle: 'core',
     equipment: 'bodyweight',
+    tracking: 'reps',
     sourceId: 'Air_Bike',
     cues: [
       'Lower back pressed into the floor.',
@@ -1419,6 +1430,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Sit-Up',
     muscle: 'core',
     equipment: 'bodyweight',
+    tracking: 'reps',
     sourceId: 'Sit-Up',
     cues: [
       'Feet flat, knees bent.',
@@ -1431,6 +1443,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Lying Leg Raise',
     muscle: 'core',
     equipment: 'bodyweight',
+    tracking: 'reps',
     sourceId: 'Flat_Bench_Lying_Leg_Raise',
     cues: [
       'Lower back pressed down.',
@@ -1443,6 +1456,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: "Captain's Chair Knee Raise",
     muscle: 'core',
     equipment: 'bodyweight',
+    tracking: 'reps',
     sourceId: 'Knee_Hip_Raise_On_Parallel_Bars',
     cues: [
       'Back against the pad, shoulders down.',
@@ -1455,6 +1469,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Side Plank',
     muscle: 'core',
     equipment: 'bodyweight',
+    tracking: 'time',
     sourceId: 'Side_Bridge',
     cues: [
       'Elbow under the shoulder.',
@@ -1479,6 +1494,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Mountain Climber',
     muscle: 'core',
     equipment: 'bodyweight',
+    tracking: 'reps',
     sourceId: 'Mountain_Climbers',
     cues: [
       'Hands under the shoulders.',
@@ -1491,6 +1507,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Plank',
     muscle: 'core',
     equipment: 'bodyweight',
+    tracking: 'time',
     sourceId: 'Plank',
     cues: [
       'Elbows under the shoulders.',
@@ -1503,6 +1520,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Hanging Leg Raise',
     muscle: 'core',
     equipment: 'bodyweight',
+    tracking: 'reps',
     sourceId: 'Hanging_Leg_Raise',
     cues: [
       'Start from a still hang.',
@@ -1527,6 +1545,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Russian Twist',
     muscle: 'core',
     equipment: 'bodyweight',
+    tracking: 'reps',
     sourceId: 'Russian_Twist',
     cues: [
       'Lean back, chest up.',
@@ -1539,6 +1558,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Ab Wheel',
     muscle: 'core',
     equipment: 'other',
+    tracking: 'reps',
     sourceId: 'Ab_Roller',
     cues: [
       'Start on the knees, hips tucked.',
@@ -1551,6 +1571,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Dead Bug',
     muscle: 'core',
     equipment: 'bodyweight',
+    tracking: 'reps',
     sourceId: 'Dead_Bug',
     cues: [
       'Lower back pressed into the floor.',
@@ -1565,6 +1586,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Treadmill Walk',
     muscle: 'cardio',
     equipment: 'machine',
+    tracking: 'cardio',
     sourceId: 'Walking_Treadmill',
     cues: [
       'Stand tall, arms relaxed.',
@@ -1577,6 +1599,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Treadmill Run',
     muscle: 'cardio',
     equipment: 'machine',
+    tracking: 'cardio',
     sourceId: 'Running_Treadmill',
     cues: [
       'Short, light steps.',
@@ -1589,6 +1612,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Stationary Bike',
     muscle: 'cardio',
     equipment: 'machine',
+    tracking: 'cardio',
     sourceId: 'Bicycling_Stationary',
     cues: [
       'Seat at hip height.',
@@ -1601,6 +1625,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Rowing Machine',
     muscle: 'cardio',
     equipment: 'machine',
+    tracking: 'cardio',
     sourceId: 'Rowing_Stationary',
     cues: [
       'Legs, then body, then arms.',
@@ -1613,6 +1638,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Elliptical',
     muscle: 'cardio',
     equipment: 'machine',
+    tracking: 'cardio',
     sourceId: 'Elliptical_Trainer',
     cues: [
       'Stand tall, light grip.',
@@ -1625,6 +1651,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Stair Climber',
     muscle: 'cardio',
     equipment: 'machine',
+    tracking: 'time',
     sourceId: 'Stairmaster',
     cues: [
       'Stand tall. Light hands on the rails.',
@@ -1637,6 +1664,7 @@ export const LIBRARY: LibraryExercise[] = [
     name: 'Jump Rope',
     muscle: 'cardio',
     equipment: 'other',
+    tracking: 'time',
     sourceId: 'Rope_Jumping',
     cues: [
       'Small jumps, just off the floor.',

@@ -29,8 +29,9 @@ function closeness(e: Exercise, to: Exercise) {
   return all.some((m) => theirs.includes(m)) ? 1 : 2;
 }
 
-// The machine is taken: pick something else for today. One tap swaps it in and goes
-// back; the plan itself is never touched.
+// The machine is taken: do another exercise from today's session first, or pick
+// something else from the library. One tap and it's back to the workout; the plan
+// itself is never touched.
 export default function SwapScreen() {
   const db = useSQLiteContext();
   const [request] = useState(currentSwapRequest);
@@ -52,8 +53,15 @@ export default function SwapScreen() {
     if (all.length) firstPaint.current = false;
   }, [all]);
 
-  const shown = useMemo(() => {
+  // Today's other exercises, narrowed by the search like the library below them.
+  const fromSession = useMemo(() => {
     if (!request) return [];
+    const q = normalize(query);
+    return request.session.filter((s) => !q || normalize(searchText(s.exercise)).includes(q));
+  }, [request, query]);
+
+  const shown = useMemo(() => {
+    if (!request?.canReplace) return [];
     const { current, planned, takenIds } = request;
     const q = normalize(query);
     const isPlanned = (e: Exercise) => e.id === planned.id;
@@ -74,6 +82,13 @@ export default function SwapScreen() {
   }, [all, query, sameMuscle, request]);
 
   if (!request) return null;
+
+  const switchTo = (key: string) => {
+    if (picking.current) return;
+    picking.current = true;
+    request.onSwitch(key);
+    router.back();
+  };
 
   const pick = async (exercise: Exercise) => {
     if (picking.current) return;
@@ -96,55 +111,98 @@ export default function SwapScreen() {
           <Text style={styles.meta}>Only for this session. Your plan stays as it is.</Text>
         </Animated.View>
 
-        <Animated.View entering={rise(120)} style={styles.search}>
-          <SearchIcon />
-          <TextInput
-            accessibilityLabel="Search exercises"
-            placeholder="Search exercises"
-            placeholderTextColor={colors.inkMuted}
-            value={query}
-            onChangeText={setQuery}
-            returnKeyType="search"
-            autoCorrect={false}
-            selectionColor={colors.inkMuted}
-            cursorColor={colors.ink}
-            style={styles.searchInput}
-          />
-        </Animated.View>
+        {(request.canReplace || request.session.length > 3) && (
+          <Animated.View entering={rise(120)} style={styles.search}>
+            <SearchIcon />
+            <TextInput
+              accessibilityLabel="Search exercises"
+              placeholder="Search exercises"
+              placeholderTextColor={colors.inkMuted}
+              value={query}
+              onChangeText={setQuery}
+              returnKeyType="search"
+              autoCorrect={false}
+              selectionColor={colors.inkMuted}
+              cursorColor={colors.ink}
+              style={styles.searchInput}
+            />
+          </Animated.View>
+        )}
 
-        <Animated.View entering={rise(180)} style={styles.chips}>
-          <Chip
-            label={muscleLabel(request.current.muscle)}
-            selected={sameMuscle}
-            onPress={() => setSameMuscle(true)}
-          />
-          <Chip label="All" selected={!sameMuscle} onPress={() => setSameMuscle(false)} />
-        </Animated.View>
-
-        <FadeScrollView>
-          {shown.map((e, i) => (
-            <Animated.View key={e.id} entering={firstPaint.current ? rise(220 + Math.min(i, 10) * 40) : undefined}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityHint="Swaps it in for this session"
-                onPress={() => pick(e)}
-                style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-              >
-                <ExerciseThumb media={e.media} />
-                <View style={styles.rowText}>
-                  <Text style={styles.rowName}>{e.name}</Text>
-                  <TargetsLine exercise={e} />
-                  <Text style={styles.meta}>
-                    {e.id === request.planned.id ? 'From your plan' : equipmentLabel(e)}
-                  </Text>
-                </View>
-              </Pressable>
+        <FadeScrollView contentContainerStyle={styles.content}>
+          {fromSession.length > 0 && (
+            <Animated.View entering={firstPaint.current ? rise(160) : undefined} style={styles.section}>
+              <Text style={styles.label}>Do one from today first</Text>
+              <View>
+                {fromSession.map((s) => (
+                  <Pressable
+                    key={s.key}
+                    accessibilityRole="button"
+                    accessibilityHint={`Does it now. ${request.current.name} comes right after.`}
+                    onPress={() => switchTo(s.key)}
+                    style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+                  >
+                    <ExerciseThumb media={s.exercise.media} />
+                    <View style={styles.rowText}>
+                      <Text style={styles.rowName}>{s.exercise.name}</Text>
+                      <TargetsLine exercise={s.exercise} />
+                      <Text style={styles.meta}>{s.note}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.meta}>{request.current.name} moves to right after it.</Text>
             </Animated.View>
-          ))}
-          {all.length > 0 && shown.length === 0 && (
-            <Text style={[styles.meta, styles.empty]}>
-              {query.trim() ? `Nothing matches “${query.trim()}”.` : 'Nothing else here. Try All.'}
-            </Text>
+          )}
+
+          {request.canReplace ? (
+            <View style={styles.section}>
+              <Animated.View entering={firstPaint.current ? rise(200) : undefined} style={styles.section}>
+                {request.session.length > 0 && <Text style={styles.label}>Or something else</Text>}
+                <View style={styles.chips}>
+                  <Chip
+                    label={muscleLabel(request.current.muscle)}
+                    selected={sameMuscle}
+                    onPress={() => setSameMuscle(true)}
+                  />
+                  <Chip label="All" selected={!sameMuscle} onPress={() => setSameMuscle(false)} />
+                </View>
+              </Animated.View>
+              <View>
+                {shown.map((e, i) => (
+                  <Animated.View
+                    key={e.id}
+                    entering={firstPaint.current ? rise(240 + Math.min(i, 10) * 40) : undefined}
+                  >
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityHint="Swaps it in for this session"
+                      onPress={() => pick(e)}
+                      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+                    >
+                      <ExerciseThumb media={e.media} />
+                      <View style={styles.rowText}>
+                        <Text style={styles.rowName}>{e.name}</Text>
+                        <TargetsLine exercise={e} />
+                        <Text style={styles.meta}>
+                          {e.id === request.planned.id ? 'From your plan' : equipmentLabel(e)}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  </Animated.View>
+                ))}
+                {all.length > 0 && shown.length === 0 && (
+                  <Text style={[styles.meta, styles.empty]}>
+                    {query.trim() ? `Nothing matches “${query.trim()}”.` : 'Nothing else here. Try All.'}
+                  </Text>
+                )}
+              </View>
+            </View>
+          ) : (
+            <Animated.Text entering={rise(200)} style={styles.meta}>
+              Sets are ticked on this one, so it can only trade places. Untick them to swap in
+              something else.
+            </Animated.Text>
           )}
         </FadeScrollView>
       </View>
@@ -157,6 +215,9 @@ const styles = StyleSheet.create({
   intro: { gap: space[1] },
   title: { ...type.title, color: colors.ink },
   meta: { ...type.caption, color: colors.inkMuted },
+  label: { ...type.labelWide, color: colors.inkMuted },
+  content: { gap: space[6] },
+  section: { gap: space[3] },
   search: {
     flexDirection: 'row',
     alignItems: 'center',

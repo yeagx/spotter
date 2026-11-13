@@ -41,32 +41,114 @@ import {
   deleteSetLog,
   endSession,
   getSession,
+  getSessionOrder,
   getSetCounts,
   getSwaps,
   lastSets,
   listSetLogs,
   removeSet,
   saveSetCount,
+  saveSessionOrder,
   saveSetLog,
   saveSwap,
   type Lift,
 } from '@/db/sessions';
-import type { Exercise } from '@/db/types';
+import type { Exercise, Tracking } from '@/db/types';
 import { confirmDestructive, notify } from '@/lib/confirm';
 import { formatClock } from '@/lib/dates';
 import { haptic } from '@/lib/haptics';
 import { easeOut, rise, stagger } from '@/lib/motion';
 import { cancelRestEnd, playRestDone, prepareRestAlerts, scheduleRestEnd } from '@/lib/restAlert';
-import { formatReps, formatRest } from '@/lib/scheme';
+import { formatRest, schemeLine } from '@/lib/scheme';
 import { openSwap } from '@/lib/swapPicker';
-import { parseDecimal, parseWhole } from '@/lib/units';
+import { formatLift, type UnitsView } from '@/lib/tracking';
+import { formatNumber, parseDecimal, parseWhole } from '@/lib/units';
 import { useContentColumn } from '@/hooks/useContentColumn';
 import { useProfile, useUnits } from '@/state/profile';
 import { colors, layout, motion, radius, size, space, type } from '@/theme';
 
-// One set row. kg and reps hold what's on screen (in the user's units) so typing is
-// free; `logId` is set once the set is ticked and saved.
-type Row = { kg: string; reps: string; logId: string | null };
+// One set row. The fields hold what's on screen (in the user's units) so typing is
+// free; which ones show depends on what the exercise tracks. `time` is seconds for a
+// hold and minutes for cardio. `logId` is set once the set is ticked and saved.
+type Row = { kg: string; reps: string; time: string; dist: string; logId: string | null };
+type FieldKey = Exclude<keyof Row, 'logId'>;
+
+type Field = {
+  key: FieldKey;
+  head: string; // column title
+  unit: string; // beside each number
+  keyboard: 'decimal-pad' | 'number-pad';
+  maxLength: number;
+};
+
+type Units = UnitsView & {
+  toKg: (value: number) => number;
+  toM: (value: number) => number;
+};
+
+// The columns of a set row: kg × reps, reps, seconds, or minutes and distance.
+function fieldsFor(tracking: Tracking, u: Units): Field[] {
+  const reps: Field = { key: 'reps', head: 'Reps', unit: 'reps', keyboard: 'number-pad', maxLength: 3 };
+  switch (tracking) {
+    case 'reps':
+      return [reps];
+    case 'time':
+      return [{ key: 'time', head: 'Time', unit: 's', keyboard: 'number-pad', maxLength: 4 }];
+    case 'cardio':
+      return [
+        { key: 'time', head: 'Time', unit: 'min', keyboard: 'decimal-pad', maxLength: 5 },
+        { key: 'dist', head: 'Distance', unit: u.dist, keyboard: 'decimal-pad', maxLength: 6 },
+      ];
+    default:
+      return [{ key: 'kg', head: u.units, unit: u.units, keyboard: 'decimal-pad', maxLength: 6 }, reps];
+  }
+}
+
+// What a logged set looks like typed back into a row.
+function toRow(l: Lift, tracking: Tracking, u: Units, logId: string | null = null): Row {
+  return {
+    kg: tracking === 'weight' ? u.show(l.kg) : '',
+    reps: String(l.reps),
+    time: tracking === 'time' ? String(l.sec) : tracking === 'cardio' ? formatNumber(l.sec / 60) : '',
+    dist: l.m > 0 ? u.showDist(l.m) : '',
+    logId,
+  };
+}
+
+// Reads a row's typed numbers, or null if what's needed is missing. An empty kg is
+// bodyweight (0); an empty distance just wasn't measured.
+function readRow(row: Row, tracking: Tracking, u: Units): Lift | null {
+  const none = { kg: 0, reps: 0, sec: 0, m: 0 };
+  switch (tracking) {
+    case 'reps': {
+      const reps = parseWhole(row.reps);
+      return reps ? { ...none, reps } : null;
+    }
+    case 'time': {
+      const sec = parseWhole(row.time);
+      return sec ? { ...none, sec } : null;
+    }
+    case 'cardio': {
+      const min = parseDecimal(row.time);
+      const dist = row.dist.trim() === '' ? 0 : parseDecimal(row.dist);
+      if (!min || dist === null) return null;
+      return { ...none, sec: Math.round(min * 60), m: Math.round(u.toM(dist)) };
+    }
+    default: {
+      const value = row.kg.trim() === '' ? 0 : parseDecimal(row.kg);
+      const reps = parseWhole(row.reps);
+      if (value === null || !reps) return null;
+      return { ...none, kg: u.toKg(value), reps };
+    }
+  }
+}
+
+const MISSING: Record<Tracking, string> = {
+  weight: 'Enter the weight and reps for this set.',
+  reps: 'Enter the reps for this set.',
+  time: 'Enter how long you held it, in seconds.',
+  cardio: 'Enter how many minutes. Distance is optional.',
+};
 
 type Block = {
   item: DayExercise; // `item.exercise` is what's being done: the planned one, or a swap
@@ -85,14 +167,20 @@ const LATE_MS = 2000;
 
 const isDone = (b: Block) => b.rows.every((r) => r.logId);
 
-const topOf = (sets: Lift[]) => sets.reduce<Lift | null>((top, s) => (beats(s, top) ? s : top), null);
+const topOf = (sets: Lift[], tracking: Tracking) =>
+  sets.reduce<Lift | null>((top, s) => (beats(s, top, tracking) ? s : top), null);
 
-// Blank rows pre-filled from the same set last time, or the last set they did.
-const prefill = (count: number, last: Lift[], repsMin: number, show: (kg: number) => string): Row[] =>
-  Array.from({ length: count }, (_, i) => {
-    const prev = last[i] ?? last[last.length - 1];
-    return { kg: prev ? show(prev.kg) : '', reps: String(prev?.reps ?? repsMin), logId: null };
-  });
+// A row pre-filled from the same set last time, or the last set they did, or else the
+// plan's target (the bottom of the range).
+function prefillRow(i: number, last: Lift[], item: DayExercise, u: Units): Row {
+  const t = item.exercise.tracking;
+  const prev = last[i] ?? last[last.length - 1];
+  if (prev) return toRow(prev, t, u);
+  return { ...toRow({ kg: 0, reps: item.repsMin, sec: item.secMin, m: 0 }, t, u), kg: '' };
+}
+
+const prefill = (count: number, last: Lift[], item: DayExercise, u: Units): Row[] =>
+  Array.from({ length: count }, (_, i) => prefillRow(i, last, item, u));
 
 export default function WorkoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -140,6 +228,7 @@ export default function WorkoutScreen() {
       const logs = await listSetLogs(db, id);
       const counts = await getSetCounts(db, id);
       const swaps = await getSwaps(db, id);
+      const order = await getSessionOrder(db, id);
       const built: Block[] = [];
       for (const planned of day.exercises) {
         // An exercise swapped earlier in this session stays swapped when it's resumed.
@@ -153,16 +242,21 @@ export default function WorkoutScreen() {
         const count = Math.max(1, counts.get(item.id) ?? item.sets, ...mine.map((l) => l.setIndex + 1));
         const rows: Row[] = Array.from({ length: count }, (_, i) => {
           const log = mine.find((l) => l.setIndex === i);
-          if (log) return { kg: units.show(log.kg), reps: String(log.reps), logId: log.id };
-          // Pre-fill from the same set last time, or the last set they did.
-          const prev = last[i] ?? last[last.length - 1];
-          return {
-            kg: prev ? units.show(prev.kg) : '',
-            reps: String(prev?.reps ?? item.repsMin),
-            logId: null,
-          };
+          return log ? toRow(log, item.exercise.tracking, units, log.id) : prefillRow(i, last, item, units);
         });
-        built.push({ item, planned: planned.exercise, rows, bestBefore, lastTop: topOf(last) });
+        built.push({
+          item,
+          planned: planned.exercise,
+          rows,
+          bestBefore,
+          lastTop: topOf(last, item.exercise.tracking),
+        });
+      }
+      // Exercises moved earlier in this session stay where they were put. One added to
+      // the plan since goes after them, in plan order.
+      if (order.size) {
+        const at = new Map(built.map((b, i) => [b, order.get(b.item.id) ?? order.size + i]));
+        built.sort((a, b) => at.get(a)! - at.get(b)!);
       }
       setStartedAt(session.startedAt);
       commit(built);
@@ -240,14 +334,6 @@ export default function WorkoutScreen() {
       ),
     );
 
-  // Reads a row's typed numbers. Empty kg means bodyweight (0).
-  const readRow = (row: Row): Lift | null => {
-    const value = row.kg.trim() === '' ? 0 : parseDecimal(row.kg);
-    const reps = parseWhole(row.reps);
-    if (value === null || !reps) return null;
-    return { kg: units.toKg(value), reps };
-  };
-
   const toggle = async (bi: number, ri: number) => {
     // Logging a set closes the keyboard and lets go of the field, so the number you just
     // typed doesn't stay highlighted.
@@ -257,33 +343,36 @@ export default function WorkoutScreen() {
     try {
       const block = blocksRef.current[bi];
       const row = block.rows[ri];
+      const tracking = block.item.exercise.tracking;
       if (row.logId) {
         await deleteSetLog(db, row.logId);
         updateRow(bi, ri, { logId: null });
         return;
       }
-      const lift = readRow(row);
+      const lift = readRow(row, tracking, units);
       if (!lift) {
         haptic.warn();
-        notify('Check the numbers', 'Enter the weight and reps for this set.');
+        notify('Check the numbers', MISSING[tracking]);
         return;
       }
       const logId = randomUUID();
       await saveSetLog(db, id, { id: logId, exerciseId: block.item.exercise.id, setIndex: ri, ...lift });
       haptic.press();
-      updateRow(bi, ri, { logId, kg: units.show(lift.kg), reps: String(lift.reps) });
+      updateRow(bi, ri, toRow(lift, tracking, units, logId));
       // First time on an exercise there's nothing to pre-fill from, so carry this
       // weight down to later sets that are still blank.
-      blocksRef.current[bi].rows.forEach((r, j) => {
-        if (j > ri && !r.logId && r.kg.trim() === '') updateRow(bi, j, { kg: units.show(lift.kg) });
-      });
+      if (tracking === 'weight') {
+        blocksRef.current[bi].rows.forEach((r, j) => {
+          if (j > ri && !r.logId && r.kg.trim() === '') updateRow(bi, j, { kg: units.show(lift.kg) });
+        });
+      }
 
       // New best: beats every earlier session and every set already done today.
       const today = block.rows
         .filter((r, j) => j !== ri && r.logId)
-        .map(readRow)
-        .reduce<Lift | null>((top, l) => (l && beats(l, top) ? l : top), null);
-      if (block.bestBefore && beats(lift, block.bestBefore) && beats(lift, today)) {
+        .map((r) => readRow(r, tracking, units))
+        .reduce<Lift | null>((top, l) => (l && beats(l, top, tracking) ? l : top), null);
+      if (block.bestBefore && beats(lift, block.bestBefore, tracking) && beats(lift, today, tracking)) {
         setNewBestUntil(Date.now() + NEW_BEST_MS);
         haptic.success();
       }
@@ -319,11 +408,12 @@ export default function WorkoutScreen() {
     const block = blocksRef.current[bi];
     const row = block.rows[ri];
     if (!row.logId) return;
-    const lift = readRow(row);
+    const tracking = block.item.exercise.tracking;
+    const lift = readRow(row, tracking, units);
     const logs = await listSetLogs(db, id);
     const saved = logs.find((l) => l.id === row.logId);
     if (!lift) {
-      if (saved) updateRow(bi, ri, { kg: units.show(saved.kg), reps: String(saved.reps) });
+      if (saved) updateRow(bi, ri, toRow(saved, tracking, units, row.logId));
       return;
     }
     await saveSetLog(db, id, {
@@ -340,7 +430,7 @@ export default function WorkoutScreen() {
       blocksRef.current.map((b, i) => {
         if (i !== bi) return b;
         const last = b.rows[b.rows.length - 1];
-        return { ...b, rows: [...b.rows, { kg: last?.kg ?? '', reps: last?.reps ?? '', logId: null }] };
+        return { ...b, rows: [...b.rows, { ...last, logId: null }] };
       }),
     );
     haptic.select();
@@ -358,10 +448,11 @@ export default function WorkoutScreen() {
       return;
     }
     const row = block.rows[ri];
+    const logged = row.logId ? readRow(row, block.item.exercise.tracking, units) : null;
     const ok = await confirmDestructive({
       title: `Remove set ${ri + 1}?`,
-      message: row.logId
-        ? `${row.kg.trim() || '0'} ${units.units} × ${row.reps} comes out of this session. Your plan stays as it is.`
+      message: logged
+        ? `${formatLift(logged, block.item.exercise.tracking, units)} comes out of this session. Your plan stays as it is.`
         : 'Only for this session. Your plan stays as it is.',
       confirmLabel: 'Remove',
       cancelLabel: 'Keep',
@@ -390,20 +481,68 @@ export default function WorkoutScreen() {
     }
   };
 
-  // The machine is taken: do something else for this exercise today. Only this session
-  // changes; the plan keeps the original. Sets already ticked belong to the exercise
-  // they were done on, so they have to come off first.
+  // Moves an exercise to a new place in this session's order (saved, so a resumed
+  // session keeps it). The plan's order stays as it is.
+  const moveBlock = (from: number, to: number) => {
+    const next = [...blocksRef.current];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    commit(next);
+    saveSessionOrder(
+      db,
+      id,
+      next.map((b) => b.item.id),
+    ).catch(() => {});
+  };
+
+  // The machine is taken: do something else for this exercise today. Either another
+  // exercise from this session moves up and this one comes right after it, or one from
+  // the library takes its place. Only this session changes; the plan keeps the original.
+  // Sets already ticked belong to the exercise they were done on, so a ticked exercise
+  // can only trade places.
   const askSwap = (bi: number) => {
     Keyboard.dismiss();
-    const block = blocksRef.current[bi];
-    if (block.rows.some((r) => r.logId)) {
+    const all = blocksRef.current;
+    const block = all[bi];
+    const ticked = block.rows.some((r) => r.logId);
+    // Later in the session first, then any skipped earlier on.
+    const others = [...all.keys()]
+      .map((k) => (bi + 1 + k) % all.length)
+      .filter((k) => k !== bi && !isDone(all[k]));
+    if (ticked && others.length === 0) {
       notify('Sets already ticked', 'Untick this exercise’s sets first, then swap it.');
       return;
     }
     openSwap({
       current: block.item.exercise,
       planned: block.planned,
-      takenIds: blocksRef.current.filter((_, i) => i !== bi).map((b) => b.item.exercise.id),
+      takenIds: all.filter((_, i) => i !== bi).map((b) => b.item.exercise.id),
+      canReplace: !ticked,
+      session: others.map((k, n) => {
+        const done = all[k].rows.filter((r) => r.logId).length;
+        return {
+          key: all[k].item.id,
+          exercise: all[k].item.exercise,
+          note: done
+            ? `${done} of ${all[k].rows.length} sets done`
+            : k < bi
+              ? 'Skipped earlier'
+              : n === 0
+                ? 'Up next'
+                : 'Later today',
+        };
+      }),
+      onSwitch: (key) => {
+        const list = blocksRef.current;
+        const from = list.findIndex((b) => b.item.id === key);
+        const at = list.findIndex((b) => b.item.id === block.item.id);
+        if (from === -1 || at === -1) return;
+        // It goes where this one was; this one (and everything after) moves down one.
+        const to = from < at ? at - 1 : at;
+        moveBlock(from, to);
+        setIndex(to);
+        haptic.press();
+      },
       onPick: async (exercise) => {
         const last = await lastSets(db, exercise.id, id);
         const bestBefore = await bestLift(db, exercise.id, id);
@@ -416,9 +555,9 @@ export default function WorkoutScreen() {
               : {
                   ...b,
                   item: { ...b.item, exercise },
-                  rows: prefill(b.rows.length, last, b.item.repsMin, units.show),
+                  rows: prefill(b.rows.length, last, { ...b.item, exercise }, units),
                   bestBefore,
-                  lastTop: topOf(last),
+                  lastTop: topOf(last, exercise.tracking),
                 },
           ),
         );
@@ -472,6 +611,8 @@ export default function WorkoutScreen() {
   if (state === 'loading' || !blocks.length) return <View style={styles.root} />;
 
   const block = blocks[index];
+  const tracking = block.item.exercise.tracking;
+  const fields = fieldsFor(tracking, units);
   const swapped = block.item.exercise.id !== block.planned.id;
   const active = block.rows.findIndex((r) => !r.logId);
   const blockDone = active === -1;
@@ -519,9 +660,7 @@ export default function WorkoutScreen() {
   ) : (
     <Text style={styles.statusText}>
       rest {formatRest(restAfterSet(block))}
-      {block.lastTop
-        ? ` · last time ${units.show(block.lastTop.kg)} ${units.units} × ${block.lastTop.reps}`
-        : ''}
+      {block.lastTop ? ` · last time ${formatLift(block.lastTop, tracking, units)}` : ''}
     </Text>
   );
 
@@ -571,8 +710,7 @@ export default function WorkoutScreen() {
               remaining={restEndsAt - now}
               total={restTotal}
               next={blocks[restingInto]}
-              unitLabel={units.units}
-              show={units.show}
+              units={units}
               onAdd={addRest}
               onSkip={skipRest}
             />
@@ -593,14 +731,14 @@ export default function WorkoutScreen() {
                     <Text style={styles.title}>{block.item.exercise.name}</Text>
                     <TargetsLine exercise={block.item.exercise} />
                     <Text style={styles.meta}>
-                      {block.item.sets} sets · {formatReps(block.item.repsMin, block.item.repsMax)} reps
+                      {schemeLine(block.item)}
                       {swapped ? ` · instead of ${block.planned.name}, today only` : ''}
                     </Text>
                   </Pressable>
                   <PressableScale
                     accessibilityRole="button"
                     accessibilityLabel="Swap this exercise"
-                    accessibilityHint="Pick another one for this session only"
+                    accessibilityHint="Do another one first, or pick a different one for this session only"
                     onPress={() => askSwap(index)}
                     style={styles.close}
                   >
@@ -625,8 +763,11 @@ export default function WorkoutScreen() {
                 <View style={styles.sets}>
                   <Animated.View entering={rise(240)} style={styles.gridHead}>
                     <Text style={[styles.label, styles.colSet]}>Set</Text>
-                    <Text style={[styles.label, styles.colNum]}>{units.units}</Text>
-                    <Text style={[styles.label, styles.colNum]}>Reps</Text>
+                    {fields.map((f) => (
+                      <Text key={f.key} style={[styles.label, styles.colNum]}>
+                        {f.head}
+                      </Text>
+                    ))}
                     <View style={styles.colTick} />
                   </Animated.View>
                   {block.rows.map((row, ri) => (
@@ -636,7 +777,7 @@ export default function WorkoutScreen() {
                       row={row}
                       delay={stagger(ri, 300)}
                       isActive={ri === active}
-                      unitLabel={units.units}
+                      fields={fields}
                       onChange={(change) => updateRow(index, ri, change)}
                       onBlur={() => commitEdit(index, ri)}
                       onToggle={() => toggle(index, ri)}
@@ -676,15 +817,14 @@ type RestScreenProps = {
   remaining: number;
   total: number;
   next: Block;
-  unitLabel: string;
-  show: (kg: number) => string;
+  units: UnitsView;
   onAdd: () => void;
   onSkip: () => void;
 };
 
 // Full-screen rest between exercises: the countdown big enough to read from the bench,
 // what's next, and a way out. Moves on by itself when the time is up.
-function RestScreen({ remaining, total, next, unitLabel, show, onAdd, onSkip }: RestScreenProps) {
+function RestScreen({ remaining, total, next, units, onAdd, onSkip }: RestScreenProps) {
   const left = total > 0 ? Math.min(1, Math.max(0, remaining / total)) : 0;
   // The clock ticks twice a second; the bar glides between ticks instead of stepping.
   const reduceMotion = useReducedMotion();
@@ -714,8 +854,8 @@ function RestScreen({ remaining, total, next, unitLabel, show, onAdd, onSkip }: 
           <Text style={styles.restNext}>{next.item.exercise.name}</Text>
           <TargetsLine exercise={next.item.exercise} style={styles.centered} />
           <Text style={styles.meta}>
-            {next.item.sets} sets · {formatReps(next.item.repsMin, next.item.repsMax)} reps
-            {next.lastTop ? ` · last time ${show(next.lastTop.kg)} ${unitLabel} × ${next.lastTop.reps}` : ''}
+            {schemeLine(next.item)}
+            {next.lastTop ? ` · last time ${formatLift(next.lastTop, next.item.exercise.tracking, units)}` : ''}
           </Text>
         </View>
       </Animated.View>
@@ -749,14 +889,14 @@ type SetRowProps = {
   row: Row;
   delay: number;
   isActive: boolean;
-  unitLabel: string;
+  fields: Field[];
   onChange: (change: Partial<Row>) => void;
   onBlur: () => void;
   onToggle: () => void;
   onRemove: () => void;
 };
 
-function SetRow({ index, row, delay, isActive, unitLabel, onChange, onBlur, onToggle, onRemove }: SetRowProps) {
+function SetRow({ index, row, delay, isActive, fields, onChange, onBlur, onToggle, onRemove }: SetRowProps) {
   const done = Boolean(row.logId);
   const lit = done || isActive;
   return (
@@ -771,40 +911,27 @@ function SetRow({ index, row, delay, isActive, unitLabel, onChange, onBlur, onTo
       >
         <Text style={styles.setNumber}>{index + 1}</Text>
       </Pressable>
-      <View style={[styles.cell, styles.colNum]}>
-        <TextInput
-          accessibilityLabel={`Set ${index + 1} ${unitLabel}`}
-          value={row.kg}
-          onChangeText={(kg) => onChange({ kg })}
-          onBlur={onBlur}
-          keyboardType="decimal-pad"
-          selectTextOnFocus
-          placeholder="0"
-          placeholderTextColor={colors.inkFaint}
-          maxLength={6}
-          maxFontSizeMultiplier={1.3}
-          selectionColor={colors.inkMuted}
-          cursorColor={colors.ink}
-          style={[styles.number, lit && styles.numberLit]}
-        />
-        <Text style={styles.unit}>{unitLabel}</Text>
-      </View>
-      <View style={[styles.cell, styles.colNum]}>
-        <TextInput
-          accessibilityLabel={`Set ${index + 1} reps`}
-          value={row.reps}
-          onChangeText={(reps) => onChange({ reps })}
-          onBlur={onBlur}
-          keyboardType="number-pad"
-          selectTextOnFocus
-          maxLength={3}
-          maxFontSizeMultiplier={1.3}
-          selectionColor={colors.inkMuted}
-          cursorColor={colors.ink}
-          style={[styles.number, lit && styles.numberLit]}
-        />
-        <Text style={styles.unit}>reps</Text>
-      </View>
+      {fields.map((f) => (
+        <View key={f.key} style={[styles.cell, styles.colNum]}>
+          <TextInput
+            accessibilityLabel={`Set ${index + 1} ${f.head}`}
+            value={row[f.key]}
+            onChangeText={(text) => onChange({ [f.key]: text })}
+            onBlur={onBlur}
+            keyboardType={f.keyboard}
+            selectTextOnFocus
+            // Blank kg is bodyweight and blank distance wasn't measured; both read as 0.
+            placeholder={f.key === 'kg' || f.key === 'dist' ? '0' : undefined}
+            placeholderTextColor={colors.inkFaint}
+            maxLength={f.maxLength}
+            maxFontSizeMultiplier={1.3}
+            selectionColor={colors.inkMuted}
+            cursorColor={colors.ink}
+            style={[styles.number, lit && styles.numberLit]}
+          />
+          <Text style={styles.unit}>{f.unit}</Text>
+        </View>
+      ))}
       <PressableScale
         accessibilityRole="checkbox"
         accessibilityState={{ checked: done }}

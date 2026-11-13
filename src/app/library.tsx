@@ -15,13 +15,14 @@ import { StackScreen } from '@/components/StackScreen';
 import { TargetsLine } from '@/components/TargetsLine';
 import { TextField } from '@/components/TextField';
 import { createCustomExercise, listExercises } from '@/db/exercises';
-import { MUSCLES, type Exercise, type Muscle } from '@/db/types';
+import { MUSCLES, TRACKINGS, type Exercise, type Muscle, type Tracking } from '@/db/types';
 import { notify } from '@/lib/confirm';
 import { haptic } from '@/lib/haptics';
 import { PICK_PROBLEMS, pickExerciseMedia, removeExerciseMedia, type FileMedia } from '@/lib/exerciseMedia';
 import { equipmentLabel, muscleLabel, searchText } from '@/lib/labels';
 import { currentLibraryRequest } from '@/lib/libraryPicker';
 import { rise, settle } from '@/lib/motion';
+import { TRACKING_LABELS, defaultTracking } from '@/lib/tracking';
 import { colors, radius, size, space, type } from '@/theme';
 
 // Search ignores case, spaces and dashes, so "pullup" finds "Pull-Up".
@@ -174,7 +175,9 @@ export default function LibraryScreen() {
           <CustomExercise
             initialName={query.trim()}
             initialMuscle={muscle}
-            onCreate={(name, m, media) => createCustomExercise(db, { name, muscle: m, media }).then(onCreated)}
+            onCreate={(name, m, tracking, media) =>
+              createCustomExercise(db, { name, muscle: m, tracking, media }).then(onCreated)
+            }
           />
         </FadeScrollView>
       </View>
@@ -182,8 +185,8 @@ export default function LibraryScreen() {
   );
 }
 
-// "Can't find it?" opens a small form: a name, one muscle, and a photo or clip of your
-// own if you want a demo for it.
+// "Can't find it?" opens a small form: a name, one muscle, what a set records, and a
+// photo or clip of your own if you want a demo for it.
 function CustomExercise({
   initialName,
   initialMuscle,
@@ -191,11 +194,13 @@ function CustomExercise({
 }: {
   initialName: string;
   initialMuscle: Muscle | null;
-  onCreate: (name: string, muscle: Muscle, media: FileMedia | null) => Promise<void>;
+  onCreate: (name: string, muscle: Muscle, tracking: Tracking, media: FileMedia | null) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [muscle, setMuscle] = useState<Muscle | null>(null);
+  // Follows the muscle (cardio means time + distance) until picked by hand.
+  const [tracking, setTracking] = useState<Tracking | null>(null);
   const [media, setMedia] = useState<FileMedia | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -203,6 +208,7 @@ function CustomExercise({
   const start = () => {
     setName(initialName);
     setMuscle(initialMuscle);
+    setTracking(null);
     setMedia(null);
     setOpen(true);
   };
@@ -233,11 +239,12 @@ function CustomExercise({
   }
 
   const ready = name.trim().length > 0 && muscle !== null && !busy;
+  const tracks = tracking ?? defaultTracking(muscle ?? '');
   const create = async () => {
     if (!ready) return;
     setBusy(true);
     try {
-      await onCreate(name, muscle, media);
+      await onCreate(name, muscle, tracks, media);
       setOpen(false);
     } finally {
       setBusy(false);
@@ -262,6 +269,18 @@ function CustomExercise({
             label={muscleLabel(m)}
             selected={muscle === m}
             onPress={() => setMuscle(m)}
+            raised
+          />
+        ))}
+      </View>
+      <Text style={styles.label}>Each set records</Text>
+      <View style={styles.muscleGrid}>
+        {TRACKINGS.map((t) => (
+          <Chip
+            key={t}
+            label={TRACKING_LABELS[t]}
+            selected={tracks === t}
+            onPress={() => setTracking(t)}
             raised
           />
         ))}

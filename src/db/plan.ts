@@ -3,14 +3,19 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { dataChanged } from './changes';
 import { toExercise, type ExerciseRow } from './exercises';
-import type { Exercise, Weekday } from './types';
+import type { Exercise, Tracking, Weekday } from './types';
 
+// One exercise in a day. Reps are the target for weight and reps exercises; secMin and
+// secMax are the target for time and cardio ones. Both are always filled in, so an
+// exercise reads sensibly whichever way it's tracked.
 export type DayExercise = {
   id: string;
   exercise: Exercise;
   sets: number;
   repsMin: number;
   repsMax: number;
+  secMin: number;
+  secMax: number;
   restSec: number;
 };
 
@@ -27,8 +32,22 @@ export type Split = {
   days: SplitDay[]; // in position order
 };
 
-// What a freshly added exercise starts with; the user tunes it in Edit day.
-export const DEFAULT_SCHEME = { sets: 3, repsMin: 8, repsMax: 12, restSec: 90 };
+export type Scheme = Omit<DayExercise, 'id' | 'exercise'>;
+
+// What a freshly added exercise starts with; the user tunes it in Edit day. Cardio is
+// one block of time, a hold a few short ones.
+export function defaultScheme(tracking: Tracking): Scheme {
+  switch (tracking) {
+    case 'cardio':
+      return { sets: 1, repsMin: 8, repsMax: 12, secMin: 20 * 60, secMax: 20 * 60, restSec: 60 };
+    case 'time':
+      return { sets: 3, repsMin: 8, repsMax: 12, secMin: 30, secMax: 60, restSec: 60 };
+    case 'reps':
+      return { sets: 3, repsMin: 10, repsMax: 15, secMin: 30, secMax: 60, restSec: 60 };
+    default:
+      return { sets: 3, repsMin: 8, repsMax: 12, secMin: 30, secMax: 60, restSec: 90 };
+  }
+}
 
 type DayRow = { id: string; weekday: number | null; name: string };
 type DayExerciseRow = ExerciseRow & {
@@ -37,23 +56,31 @@ type DayExerciseRow = ExerciseRow & {
   sets: number;
   reps_min: number;
   reps_max: number;
+  target_sec_min: number | null;
+  target_sec_max: number | null;
   rest_sec: number;
 };
 
 const DAY_EXERCISE_SELECT = `
-  SELECT de.id AS de_id, de.split_day_id, de.sets, de.reps_min, de.reps_max, de.rest_sec,
-         e.id, e.name, e.muscle, e.equipment, e.cues_json, e.media_json, e.targets_json, e.note,
-         e.is_custom
+  SELECT de.id AS de_id, de.split_day_id, de.sets, de.reps_min, de.reps_max, de.target_sec_min,
+         de.target_sec_max, de.rest_sec,
+         e.id, e.name, e.muscle, e.equipment, e.tracking, e.cues_json, e.media_json,
+         e.targets_json, e.note, e.is_custom
   FROM day_exercise de
   JOIN exercise e ON e.id = de.exercise_id`;
 
 function toDayExercise(row: DayExerciseRow): DayExercise {
+  const exercise = toExercise(row);
+  // A time that was never set (added before time targets existed) reads as the default.
+  const fallback = defaultScheme(exercise.tracking);
   return {
     id: row.de_id,
-    exercise: toExercise(row),
+    exercise,
     sets: row.sets,
     repsMin: row.reps_min,
     repsMax: row.reps_max,
+    secMin: row.target_sec_min ?? fallback.secMin,
+    secMax: row.target_sec_max ?? fallback.secMax,
     restSec: row.rest_sec,
   };
 }
@@ -174,14 +201,7 @@ export async function saveSplit(
   dataChanged();
 }
 
-export type DayExerciseDraft = {
-  id: string;
-  exerciseId: string;
-  sets: number;
-  repsMin: number;
-  repsMax: number;
-  restSec: number;
-};
+export type DayExerciseDraft = Scheme & { id: string; exerciseId: string };
 
 // Replaces a day's name and exercise list with the edited draft, in its order.
 export async function saveDay(
@@ -210,13 +230,15 @@ export async function saveDay(
     for (const [position, e] of exercises.entries()) {
       await db.runAsync(
         `INSERT INTO day_exercise
-           (id, split_day_id, exercise_id, sets, reps_min, reps_max, rest_sec, position,
-            created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           (id, split_day_id, exercise_id, sets, reps_min, reps_max, target_sec_min,
+            target_sec_max, rest_sec, position, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (id) DO UPDATE SET
            sets = excluded.sets,
            reps_min = excluded.reps_min,
            reps_max = excluded.reps_max,
+           target_sec_min = excluded.target_sec_min,
+           target_sec_max = excluded.target_sec_max,
            rest_sec = excluded.rest_sec,
            position = excluded.position,
            updated_at = excluded.updated_at`,
@@ -226,6 +248,8 @@ export async function saveDay(
         e.sets,
         e.repsMin,
         e.repsMax,
+        e.secMin,
+        e.secMax,
         e.restSec,
         position,
         now,
@@ -240,7 +264,7 @@ export async function saveDay(
 export async function addExercisesToDay(
   db: SQLiteDatabase,
   dayId: string,
-  exerciseIds: string[],
+  exercises: Pick<Exercise, 'id' | 'tracking'>[],
 ): Promise<void> {
   const now = Date.now();
   await db.withTransactionAsync(async () => {
@@ -249,19 +273,22 @@ export async function addExercisesToDay(
       dayId,
     );
     let position = row?.next ?? 0;
-    for (const exerciseId of exerciseIds) {
+    for (const exercise of exercises) {
+      const scheme = defaultScheme(exercise.tracking);
       await db.runAsync(
         `INSERT INTO day_exercise
-           (id, split_day_id, exercise_id, sets, reps_min, reps_max, rest_sec, position,
-            created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, split_day_id, exercise_id, sets, reps_min, reps_max, target_sec_min,
+            target_sec_max, rest_sec, position, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         randomUUID(),
         dayId,
-        exerciseId,
-        DEFAULT_SCHEME.sets,
-        DEFAULT_SCHEME.repsMin,
-        DEFAULT_SCHEME.repsMax,
-        DEFAULT_SCHEME.restSec,
+        exercise.id,
+        scheme.sets,
+        scheme.repsMin,
+        scheme.repsMax,
+        scheme.secMin,
+        scheme.secMax,
+        scheme.restSec,
         position++,
         now,
         now,

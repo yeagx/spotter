@@ -307,7 +307,7 @@ function DayBody({ label, lead, day, note, split, data, startLabel, onStart, uni
                 >
                   <View style={styles.rowText}>
                     <Text style={styles.rowName}>{e.exercise.name}</Text>
-                    <Text style={styles.meta}>{formatScheme(e.sets, e.repsMin, e.repsMax)}</Text>
+                    <Text style={styles.meta}>{formatScheme(e)}</Text>
                   </View>
                   {kg !== undefined && (
                     <View style={styles.kg}>

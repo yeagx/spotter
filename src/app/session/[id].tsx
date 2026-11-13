@@ -18,6 +18,7 @@ import { formatClock, formatDay, localDate } from '@/lib/dates';
 import { haptic } from '@/lib/haptics';
 import { easeOut, rise, stagger, webSafe } from '@/lib/motion';
 import { saveCard, shareCard } from '@/lib/shareCard';
+import { formatLift } from '@/lib/tracking';
 import { useProfile, useUnits } from '@/state/profile';
 import { colors, motion, radius, size, space, type } from '@/theme';
 
@@ -201,7 +202,7 @@ export default function SessionCardScreen() {
                       {l.name}
                     </Text>
                     <Text style={[styles.lineValue, l.isBest && styles.lineRed]} numberOfLines={1}>
-                      {l.top.kg === 0 ? `${l.top.reps} reps` : `${units.show(l.top.kg)} ${units.units} × ${l.top.reps}`}
+                      {formatLift(l.top, l.tracking, units)}
                     </Text>
                   </Animated.View>
                 ))}

@@ -158,4 +158,34 @@ export const MIGRATIONS: string[] = [
     PRIMARY KEY (session_id, day_exercise_id)
   );
   `,
+  // 6: exercises that aren't kg × reps (a treadmill, a plank), and the order of a
+  // session's exercises once the user moves them around.
+  // - exercise.tracking: see Tracking in types.ts. The library seed fills it in for
+  //   library rows; custom cardio exercises made before this become cardio.
+  // - set_log keeps kg and reps (0 when not used) and adds time and distance.
+  // - day_exercise.target_sec_*: the planned time for time and cardio exercises,
+  //   null until set (screens show a default).
+  // - A treadmill planned as 3 × 8–12 reps meant nothing; it becomes one block of time.
+  `
+  ALTER TABLE exercise ADD COLUMN tracking TEXT NOT NULL DEFAULT 'weight'
+    CHECK (tracking IN ('weight', 'reps', 'time', 'cardio'));
+  UPDATE exercise SET tracking = 'cardio' WHERE is_custom = 1 AND muscle = 'cardio';
+
+  ALTER TABLE set_log ADD COLUMN duration_sec INTEGER CHECK (duration_sec >= 0);
+  ALTER TABLE set_log ADD COLUMN distance_m REAL CHECK (distance_m >= 0);
+
+  ALTER TABLE day_exercise ADD COLUMN target_sec_min INTEGER CHECK (target_sec_min > 0);
+  ALTER TABLE day_exercise ADD COLUMN target_sec_max INTEGER CHECK (target_sec_max > 0);
+  UPDATE day_exercise SET sets = 1
+    WHERE exercise_id IN (SELECT id FROM exercise WHERE muscle = 'cardio');
+
+  CREATE TABLE session_order (
+    session_id TEXT NOT NULL REFERENCES session (id) ON DELETE CASCADE,
+    day_exercise_id TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (session_id, day_exercise_id)
+  );
+  `,
 ];

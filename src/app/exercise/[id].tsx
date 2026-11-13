@@ -29,7 +29,8 @@ import { PICK_PROBLEMS, pickExerciseMedia, removeExerciseMedia } from '@/lib/exe
 import { haptic } from '@/lib/haptics';
 import { exerciseMeta } from '@/lib/labels';
 import { rise } from '@/lib/motion';
-import { formatReps } from '@/lib/scheme';
+import { schemeLine } from '@/lib/scheme';
+import { formatLift, trendMetric } from '@/lib/tracking';
 import { formatNumber } from '@/lib/units';
 import { useUnits } from '@/state/profile';
 import { colors, radius, size, space, type } from '@/theme';
@@ -77,7 +78,7 @@ export default function ExerciseScreen() {
         best,
         history,
         recent,
-        isNewBest: Boolean(latest && before && beats(latest, before)),
+        isNewBest: Boolean(latest && before && beats(latest, before, exercise.tracking)),
       });
     })();
   }, [db, id]);
@@ -92,14 +93,20 @@ export default function ExerciseScreen() {
   if (!data) return <StackScreen label="">{null}</StackScreen>;
 
   const { exercise, planned, best, history, recent } = data;
-  // Bodyweight moves are tracked by reps, everything else by weight.
-  const byReps = history.length > 0 && history.every((h) => h.kg === 0);
-  const metric = (l: Lift) => (byReps ? l.reps : units.fromKg(l.kg));
+  // The number the bars and trend follow: weight, reps, seconds, or distance / minutes.
+  const trend = trendMetric(exercise.tracking, history, units);
+  const metric = trend.value;
   const strip = history.slice(-STRIP_SESSIONS);
   const top = Math.max(1, ...strip.map(metric));
   const change = history.length >= 2 ? metric(history[history.length - 1]) - metric(history[0]) : 0;
   const day = (ms: number) => formatDay(localDate(new Date(ms)));
-  const showSet = (l: Lift) => (l.kg === 0 ? `${l.reps}` : `${units.show(l.kg)} × ${l.reps}`);
+  const showSet = (l: Lift) => formatLift(l, exercise.tracking, units, true);
+  // The best as a big number and what follows it: "60" + "kg × 8", "45" + "s".
+  const bestRest = (l: Lift) => {
+    const full = formatLift(l, exercise.tracking, units);
+    const number = trend.show(l);
+    return full.startsWith(number) ? full.slice(number.length).trim() : trend.unit;
+  };
 
   // Only your own exercises take a photo or clip; the library's demos are bundled.
   const loops = exercise.media !== null && !(exercise.media.type === 'file' && exercise.media.kind === 'image');
@@ -143,9 +150,7 @@ export default function ExerciseScreen() {
           <Text style={styles.title}>{exercise.name}</Text>
           <TargetsLine exercise={exercise} />
           {planned && (
-            <Text style={styles.meta}>
-              {planned.sets} sets · {formatReps(planned.repsMin, planned.repsMax)} reps
-            </Text>
+            <Text style={styles.meta}>{schemeLine(planned)}</Text>
           )}
         </Animated.View>
 
@@ -209,9 +214,9 @@ export default function ExerciseScreen() {
               {best ? (
                 <View style={styles.bestValue}>
                   <Text style={styles.bestNumber} numberOfLines={1} adjustsFontSizeToFit>
-                    {byReps ? best.reps : units.show(best.kg)}
+                    {trend.show(best)}
                   </Text>
-                  <Text style={styles.meta}>{byReps ? 'reps' : `${units.units} × ${best.reps}`}</Text>
+                  <Text style={styles.meta}>{bestRest(best)}</Text>
                 </View>
               ) : (
                 <Text style={styles.meta}>Log it once and your best shows here.</Text>
@@ -246,7 +251,7 @@ export default function ExerciseScreen() {
               <>
                 <TrendChart values={history.map(metric)} delay={600} />
                 <Text style={styles.meta}>
-                  Top set · {signed(change)} {byReps ? 'reps' : units.units} since {day(history[0].doneAt)}
+                  Top set · {signed(change)} {trend.unit} since {day(history[0].doneAt)}
                 </Text>
               </>
             )}
@@ -258,7 +263,11 @@ export default function ExerciseScreen() {
                 </View>
               ))}
             </View>
-            {!byReps && <Text style={styles.meta}>{units.units} × reps, set by set.</Text>}
+            {trend.unit !== 's' && exercise.tracking !== 'cardio' && (
+              <Text style={styles.meta}>
+                {trend.unit === 'reps' ? 'Reps' : `${units.units} × reps`}, set by set.
+              </Text>
+            )}
           </Animated.View>
         )}
       </FadeScrollView>

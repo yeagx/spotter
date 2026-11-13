@@ -71,12 +71,7 @@ export default function PlanScreen() {
     openLibrary({
       dayLabel: day.weekday ? weekdayName(day.weekday) : dayTitle(day),
       existingIds: day.exercises.map((e) => e.exercise.id),
-      onAdd: (exercises) =>
-        addExercisesToDay(
-          db,
-          day.id,
-          exercises.map((e) => e.id),
-        ),
+      onAdd: (exercises) => addExercisesToDay(db, day.id, exercises),
     });
 
   const trainingDays = split.days.filter((d) => d.weekday !== null).length;
@@ -165,7 +160,7 @@ function DayCard({ day, weekday, delay, open, onToggle, onAdd, onStart, startLab
                 style={styles.exerciseRow}
               >
                 <Text style={styles.exerciseName}>{e.exercise.name}</Text>
-                <Text style={styles.scheme}>{formatScheme(e.sets, e.repsMin, e.repsMax)}</Text>
+                <Text style={styles.scheme}>{formatScheme(e)}</Text>
               </Pressable>
             </Animated.View>
           ))}

@@ -35,6 +35,7 @@ export async function getRecap(db: SQLiteDatabase, month: string): Promise<Recap
      JOIN session s ON s.id = l.session_id
      JOIN exercise e ON e.id = l.exercise_id
      WHERE s.finished_at IS NOT NULL AND s.started_at >= ? AND s.started_at < ? AND l.kg > 0
+       AND e.tracking = 'weight'
      ORDER BY l.kg DESC, l.reps DESC LIMIT 1`,
     from,
     to,

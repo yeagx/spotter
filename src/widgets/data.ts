@@ -29,7 +29,7 @@ import { WEEK, today, weekdayName } from '@/lib/week';
 export const link = (path = '') => `spotter://${path}`;
 
 const weight = (kg: number, p: Profile) => `${formatWeight(kg, p.units)} ${p.units}`;
-export const liftText = (l: Lift, p: Profile) => `${weight(l.kg, p)} × ${l.reps}`;
+export const liftText = (l: Pick<Lift, 'kg' | 'reps'>, p: Profile) => `${weight(l.kg, p)} × ${l.reps}`;
 
 // ---------- Today ----------
 
@@ -178,7 +178,8 @@ export const clearBestLiftChoice = (db: SQLiteDatabase, widgetId: number) =>
 // The exercise behind the heaviest set ever logged: the default pick.
 export async function topLiftId(db: SQLiteDatabase): Promise<string | null> {
   const row = await db.getFirstAsync<{ exercise_id: string }>(
-    'SELECT exercise_id FROM set_log WHERE kg > 0 ORDER BY kg DESC, reps DESC LIMIT 1',
+    `SELECT l.exercise_id FROM set_log l JOIN exercise e ON e.id = l.exercise_id
+     WHERE l.kg > 0 AND e.tracking = 'weight' ORDER BY l.kg DESC, l.reps DESC LIMIT 1`,
   );
   return row?.exercise_id ?? null;
 }
@@ -223,8 +224,8 @@ export async function bestLiftModel(db: SQLiteDatabase, widgetId: number): Promi
   };
 }
 
-// Exercises worth pinning: anything with a logged set (heaviest first), then the rest
-// of the plan.
+// Exercises worth pinning: anything lifted with a logged set (heaviest first), then the
+// rest of the plan. A best lift is weight × reps, so cardio and holds aren't offered.
 export async function bestLiftChoices(
   db: SQLiteDatabase,
 ): Promise<{ id: string; name: string; best: string | null }[]> {
@@ -233,12 +234,13 @@ export async function bestLiftChoices(
     `SELECT e.id, e.name, l.kg, l.reps FROM exercise e
      JOIN set_log l ON l.id = (
        SELECT id FROM set_log WHERE exercise_id = e.id ORDER BY kg DESC, reps DESC LIMIT 1)
+     WHERE e.tracking = 'weight'
      ORDER BY l.kg DESC, l.reps DESC`,
   );
   const planned = await db.getAllAsync<{ id: string; name: string }>(
     `SELECT DISTINCT e.id, e.name FROM exercise e
      JOIN day_exercise d ON d.exercise_id = e.id
-     WHERE e.id NOT IN (SELECT exercise_id FROM set_log)
+     WHERE e.id NOT IN (SELECT exercise_id FROM set_log) AND e.tracking = 'weight'
      ORDER BY e.name`,
   );
   return [
