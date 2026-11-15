@@ -10,6 +10,23 @@ export type WhatsNewEntry = { version: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: '1.6.0',
+    items: [
+      {
+        title: 'Progress photos',
+        line: 'Add front, side and back photos when you check in. Body shows your first next to your latest; Compare puts any two side by side.',
+      },
+      {
+        title: 'Your set, on the lock screen',
+        line: 'While you train, the next set and when rest ends sit on your lock screen. Log set ticks it without unlocking.',
+      },
+      {
+        title: 'Ready-made plans',
+        line: 'Full Body, Upper / Lower or Push / Pull / Legs in one tap, from Edit split. Change anything after.',
+      },
+    ],
+  },
+  {
     version: '1.5.0',
     items: [
       {
