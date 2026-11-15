@@ -35,6 +35,7 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 
 **Plan**
 - A named split (Upper / Lower, Full Body, whatever you run) pinned to the days you train.
+- Or start from a ready-made one: Full Body (3 days), Upper / Lower (4) or Push / Pull / Legs (6), then change anything.
 - Each day holds exercises with sets, a target and rest time: a rep range like `8–12`, seconds for a plank, minutes for the treadmill.
 - Reorder a day's exercises any time; workouts follow that order.
 - 134 curated exercises to pick from, with search, muscle filters and multi-select.
@@ -49,6 +50,7 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 - Each exercise logs what makes sense for it: kg × reps, reps only, time, or time and distance for cardio.
 - A rest timer between sets, and a full-screen countdown between exercises (+15 s or skip). Both lengths can be set in Profile, or follow each exercise's rest from the plan.
 - When rest ends with the phone locked or in a pocket, a short sound and two buzzes tell you (or just the buzz, or nothing).
+- The next set sits on the lock screen while you train, with when rest ends. Log set ticks it without unlocking.
 - Any set can be removed from today's session, ticked or not; the plan stays as it is.
 - Machine taken? Do another exercise from today's session first, or swap in a different one, for this session only.
 - On barbell lifts, the plates for each side are worked out for the set you're on. Tap to change the bar.
@@ -63,13 +65,14 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 - Check-ins take weight, and anything else your scale or InBody-style scan gives: BMI, body fat, muscle, water, bone, BMR.
 - Each stat is shown against the normal range for your sex, in words ("In normal range · 8–21") as well as on a bar.
 - A trend line for weight, body fat and muscle.
+- Progress photos (front, side, back) with any check-in, taken in the app or picked from the gallery. They stay inside Spotter, never in your gallery. Compare any two dates side by side, with the change in weight and body fat.
 - On Android, a check-in can be filled from Health Connect, where smart scales put their readings. Read-only, and only when you ask.
 - A daily calorie target estimated from your BMR, goal and training days, or set your own.
 
 **Share it**
 - Every finished session has a card: what you moved, each exercise's top set, new bests in red.
 - The monthly recap: sessions done against planned, best lift, new bests, and body-fat change when there are two check-ins to compare.
-- Save either to your gallery or share it, with or without your name and photo.
+- Save either to your gallery or share it, with or without your name and photo. The recap can show the month's progress photos too, only if you turn it on.
 
 **On your home screen** (Android)
 - **Today**: the day's first exercises with last weights, the week as slanted bars, and Start.

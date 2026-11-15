@@ -6,7 +6,7 @@ import Animated from 'react-native-reanimated';
 
 import { PrimaryButton } from '@/components/Buttons';
 import { FadeScrollView } from '@/components/FadeScrollView';
-import { ChevronRightIcon } from '@/components/Icons';
+import { ArrowRightIcon, ChevronRightIcon } from '@/components/Icons';
 import { PressableScale } from '@/components/PressableScale';
 import { StackScreen } from '@/components/StackScreen';
 import { TextField } from '@/components/TextField';
@@ -172,6 +172,19 @@ export default function EditSplitScreen() {
               })}
             </View>
           )}
+
+          <Animated.View entering={rise(stagger(days.length, 300))}>
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityHint="Full Body, Upper / Lower, Push / Pull / Legs"
+              onPress={() => router.push('/plans')}
+              haptic="select"
+              style={styles.templates}
+            >
+              <Text style={styles.templatesLabel}>Start from a ready-made plan</Text>
+              <ArrowRightIcon color={colors.ink} size={size.iconSm} />
+            </PressableScale>
+          </Animated.View>
         </FadeScrollView>
       )}
     </StackScreen>
@@ -211,4 +224,15 @@ const styles = StyleSheet.create({
   dayLabel: { ...type.labelWide, color: colors.inkMuted, minWidth: size.dayColumn },
   dayText: { flex: 1 },
   dayName: { ...type.heading, color: colors.ink },
+  templates: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space[2],
+    minHeight: size.tapTarget,
+    borderRadius: radius.md,
+    borderWidth: size.ring,
+    borderColor: colors.hairline,
+  },
+  templatesLabel: { ...type.bodyStrong, color: colors.ink },
 });

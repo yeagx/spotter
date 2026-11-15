@@ -11,12 +11,15 @@ import { FadeScrollView } from '@/components/FadeScrollView';
 import { DownloadIcon, ShareIcon } from '@/components/Icons';
 import { Logo } from '@/components/Logo';
 import { PressableScale } from '@/components/PressableScale';
+import { ProgressPhoto } from '@/components/ProgressPhoto';
 import { SlantStrip } from '@/components/Slant';
 import { StackScreen } from '@/components/StackScreen';
+import { listProgressPhotos } from '@/db/checkins';
 import { getRecap, type Recap } from '@/db/recap';
 import { formatDay, isMonthKey, monthKey, monthName } from '@/lib/dates';
 import { haptic } from '@/lib/haptics';
 import { easeOut, rise, stagger, webSafe } from '@/lib/motion';
+import { monthPair } from '@/lib/progress';
 import { saveCard, shareCard } from '@/lib/shareCard';
 import { formatNumber } from '@/lib/units';
 import { useProfile, useUnits } from '@/state/profile';
@@ -50,11 +53,15 @@ export default function RecapScreen() {
   // Off by default: the card is shared outside the app, so putting your face and name
   // on it is your call.
   const [showMe, setShowMe] = useState(false);
+  // Same for progress photos, and more so: off unless the user turns it on.
+  const [pair, setPair] = useState<ReturnType<typeof monthPair>>(null);
+  const [showPhotos, setShowPhotos] = useState(false);
   const [busy, setBusy] = useState(false);
   const shot = useRef<HostInstance>(null);
 
   useEffect(() => {
     getRecap(db, month).then(setRecap);
+    listProgressPhotos(db).then((photos) => setPair(monthPair(photos, month)));
   }, [db, month]);
 
   // The image is named after the month, e.g. spotter-november-2026.png, so it reads well
@@ -96,18 +103,8 @@ export default function RecapScreen() {
       close
       footer={
         <Animated.View entering={rise(900)} style={styles.footer}>
-          <Pressable
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: showMe }}
-            onPress={() => {
-              haptic.select();
-              setShowMe((v) => !v);
-            }}
-            style={styles.toggle}
-          >
-            <View style={[styles.box, showMe && styles.boxOn]}>{showMe && <DrawnCheck />}</View>
-            <Text style={styles.toggleLabel}>Show my name and photo on the card</Text>
-          </Pressable>
+          <Toggle label="Show my name and photo on the card" on={showMe} onChange={setShowMe} />
+          {pair && <Toggle label="Show my progress photos" on={showPhotos} onChange={setShowPhotos} />}
           <View style={styles.actions}>
             <PressableScale accessibilityRole="button" onPress={save} disabled={!recap || busy} style={[styles.action, styles.save]}>
               <DownloadIcon />
@@ -163,6 +160,13 @@ export default function RecapScreen() {
                 />
               )}
 
+              {pair && showPhotos && (
+                <Animated.View entering={rise()} style={styles.photos}>
+                  <ProgressPhoto uri={pair.before.uri} label={formatDay(pair.before.date)} />
+                  <ProgressPhoto uri={pair.after.uri} label={formatDay(pair.after.date)} />
+                </Animated.View>
+              )}
+
               <View style={styles.grow} />
 
               <View>
@@ -192,6 +196,24 @@ export default function RecapScreen() {
   );
 }
 
+// A checkbox line under the card: what goes on it is the user's call.
+function Toggle({ label, on, onChange }: { label: string; on: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: on }}
+      onPress={() => {
+        haptic.select();
+        onChange(!on);
+      }}
+      style={styles.toggle}
+    >
+      <View style={[styles.box, on && styles.boxOn]}>{on && <DrawnCheck />}</View>
+      <Text style={styles.toggleLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
 // "−1.1%" / "+0.4%" with a real minus sign.
 function signedPercent(n: number) {
   const r = Number(formatNumber(n));
@@ -216,6 +238,7 @@ const styles = StyleSheet.create({
   hero: { ...type.numeralHero, color: colors.ink },
   countLabel: { ...type.body, fontFamily: type.bodyStrong.fontFamily, color: colors.inkMuted },
   grow: { flexGrow: 1, minHeight: space[2] },
+  photos: { flexDirection: 'row', gap: space[2] },
   line: {
     flexDirection: 'row',
     alignItems: 'baseline',

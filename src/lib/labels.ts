@@ -1,3 +1,4 @@
+import type { Pose } from '@/db/checkins';
 import type { Exercise, Muscle } from '@/db/types';
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -23,3 +24,5 @@ export const equipmentLabel = (e: Exercise) => (e.isCustom ? 'Custom' : capitali
 // "Chest · Barbell". Custom exercises say so, since they have no demo.
 export const exerciseMeta = (e: Exercise) =>
   `${muscleLabel(e.muscle)} · ${e.isCustom ? 'Custom' : capitalize(e.equipment)}`;
+
+export const POSE_NAMES: Record<Pose, string> = { front: 'Front', side: 'Side', back: 'Back' };

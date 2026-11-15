@@ -63,6 +63,17 @@ export default function PlanScreen() {
           <Text style={styles.title}>No split yet</Text>
           <Text style={styles.meta}>Pick the days you train, then fill each one.</Text>
         </Animated.View>
+        <Animated.View entering={rise(120)}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/plans')}
+            hitSlop={space[3]}
+            style={styles.templates}
+          >
+            <Text style={styles.templatesLabel}>Or start from a ready-made plan</Text>
+            <ArrowRightIcon color={colors.ink} size={size.iconSm} />
+          </Pressable>
+        </Animated.View>
       </Screen>
     );
   }
@@ -199,6 +210,15 @@ function DayLabel({ weekday }: { weekday: Weekday }) {
 }
 
 const styles = StyleSheet.create({
+  templates: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[2],
+    minHeight: size.tapTarget,
+    marginTop: space[4],
+    alignSelf: 'flex-start',
+  },
+  templatesLabel: { ...type.bodyStrong, color: colors.ink },
   content: { gap: space[6] },
   header: {
     flexDirection: 'row',

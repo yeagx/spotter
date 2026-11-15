@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -8,14 +8,27 @@ import { OutlineButton, PrimaryButton } from '@/components/Buttons';
 import { FadeScrollView } from '@/components/FadeScrollView';
 import { BackIcon, ChevronRightIcon, DownloadIcon } from '@/components/Icons';
 import { NumberField } from '@/components/NumberField';
+import { ProgressPhoto } from '@/components/ProgressPhoto';
 import { StackScreen } from '@/components/StackScreen';
-import { deleteCheckin, getCheckin, saveCheckin, type CheckinInput } from '@/db/checkins';
+import { showDialog } from '@/components/DialogHost';
+import {
+  POSES,
+  deleteCheckin,
+  getCheckin,
+  getCheckinPhotos,
+  saveCheckin,
+  type CheckinInput,
+  type PhotoSet,
+  type Pose,
+} from '@/db/checkins';
 import { LIMITS, inLimits } from '@/lib/body';
 import { confirmDestructive, notify } from '@/lib/confirm';
 import { formatDay, localDate } from '@/lib/dates';
 import { haptic } from '@/lib/haptics';
 import { HEALTH_PROBLEMS, healthImportAvailable, readLatestBody } from '@/lib/healthImport';
+import { POSE_NAMES } from '@/lib/labels';
 import { rise, stagger } from '@/lib/motion';
+import { pickProgressPhoto, removeAppPhoto, type PhotoSource } from '@/lib/photo';
 import { formatNumber, parseDecimal, parseWhole } from '@/lib/units';
 import { useUnits } from '@/state/profile';
 import { colors, size, space, type } from '@/theme';
@@ -54,9 +67,21 @@ export default function CheckinScreen() {
   // The day a Health Connect reading was filled in from, to say where the numbers came from.
   const [importedFrom, setImportedFrom] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [photos, setPhotos] = useState<PhotoSet>({});
+  // Photos copied in during this visit. If the user leaves without saving, they go.
+  const added = useRef(new Set<string>());
+  const saved = useRef(false);
+
+  useEffect(
+    () => () => {
+      if (!saved.current) added.current.forEach(removeAppPhoto);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!id) return;
+    getCheckinPhotos(db, id).then(setPhotos);
     getCheckin(db, id).then((c) => {
       if (c) {
         const show = (k: FieldKey, v: number | null) =>
@@ -69,6 +94,36 @@ export default function CheckinScreen() {
   }, [db, id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (k: FieldKey) => (v: string) => setText((t) => ({ ...t, [k]: v }));
+
+  // A photo picked now and then replaced or removed before saving was never kept.
+  const drop = (uri: string | undefined) => {
+    if (uri && added.current.delete(uri)) removeAppPhoto(uri);
+  };
+  const choosePhoto = async (pose: Pose) => {
+    const current = photos[pose];
+    const sources: PhotoSource[] = ['library', 'camera'];
+    const actions = [
+      ...(current ? [{ label: 'Remove', kind: 'neutral' as const }] : []),
+      { label: 'Gallery', kind: 'neutral' as const },
+      { label: 'Camera', kind: 'neutral' as const },
+    ];
+    const index = await showDialog({
+      title: `${POSE_NAMES[pose]} photo`,
+      message: 'It stays in Spotter on this phone, not in your gallery.',
+      actions,
+    });
+    if (index < 0) return;
+    if (current && index === 0) {
+      drop(current);
+      setPhotos((p) => ({ ...p, [pose]: undefined }));
+      return;
+    }
+    const uri = await pickProgressPhoto(sources[index - (current ? 1 : 0)]);
+    if (!uri) return;
+    added.current.add(uri);
+    drop(current);
+    setPhotos((p) => ({ ...p, [pose]: uri }));
+  };
   const today = localDate();
 
   // Fills the form from the latest weigh-in in Health Connect (a smart scale's app puts
@@ -133,7 +188,8 @@ export default function CheckinScreen() {
     }
     setBusy(true);
     try {
-      await saveCheckin(db, result.input, id);
+      await saveCheckin(db, result.input, id, photos);
+      saved.current = true;
       router.back();
     } finally {
       setBusy(false);
@@ -233,6 +289,24 @@ export default function CheckinScreen() {
             ))}
           </View>
 
+          <Animated.View entering={rise(stagger(ORDER.length, 120))} style={styles.photos}>
+            <View style={styles.photosHead}>
+              <Text style={styles.label}>Photos</Text>
+              <Text style={styles.meta}>Optional. Same spot and light each time makes them easy to compare.</Text>
+            </View>
+            <View style={styles.photoRow}>
+              {POSES.map((pose) => (
+                <ProgressPhoto
+                  key={pose}
+                  uri={photos[pose]}
+                  label={POSE_NAMES[pose]}
+                  onPress={() => choosePhoto(pose)}
+                  accessibilityLabel={`${POSE_NAMES[pose]} photo${photos[pose] ? ', change' : ', add'}`}
+                />
+              ))}
+            </View>
+          </Animated.View>
+
           {id && (
             <Pressable accessibilityRole="button" onPress={remove} style={styles.delete}>
               <Text style={styles.deleteLabel}>Delete check-in</Text>
@@ -260,6 +334,9 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space[2], rowGap: space[4] },
   // Two per row, as a flex basis so larger text can't push a third onto the line.
   cell: { flexGrow: 1, flexBasis: '45%' },
+  photos: { gap: space[3] },
+  photosHead: { gap: space[1] },
+  photoRow: { flexDirection: 'row', gap: space[2] },
   delete: { minHeight: size.tapTarget, justifyContent: 'center', alignSelf: 'flex-start' },
   deleteLabel: { ...type.bodyStrong, color: colors.redText },
 });

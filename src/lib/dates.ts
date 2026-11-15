@@ -22,6 +22,16 @@ export const formatDay = (s: string) => {
   return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`;
 };
 
+// How far apart two check-in days are: "same day", "5 days", "6 weeks", "4 months".
+export function timeApart(from: string, to: string) {
+  const days = Math.round(Math.abs(parseLocalDate(to).getTime() - parseLocalDate(from).getTime()) / 86_400_000);
+  const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
+  if (days === 0) return 'same day';
+  if (days < 14) return plural(days, 'day');
+  if (days < 61) return plural(Math.round(days / 7), 'week');
+  return plural(Math.round(days / 30.44), 'month');
+}
+
 export const startOfDay = (d = new Date()) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 

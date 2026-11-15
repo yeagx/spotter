@@ -188,4 +188,17 @@ export const MIGRATIONS: string[] = [
     PRIMARY KEY (session_id, day_exercise_id)
   );
   `,
+  // 7: progress photos, up to one per pose on each check-in. uri points at a copy in
+  // the app's own documents folder (never the gallery), so the photos stay private.
+  `
+  CREATE TABLE checkin_photo (
+    id TEXT PRIMARY KEY NOT NULL,
+    checkin_id TEXT NOT NULL REFERENCES checkin (id) ON DELETE CASCADE,
+    pose TEXT NOT NULL CHECK (pose IN ('front', 'side', 'back')),
+    uri TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE (checkin_id, pose)
+  );
+  `,
 ];

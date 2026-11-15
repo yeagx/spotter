@@ -14,15 +14,18 @@ import { PrimaryButton, SmallButton } from '@/components/Buttons';
 import { Chip } from '@/components/Chip';
 import { CountUp } from '@/components/CountUp';
 import { ChevronRightIcon } from '@/components/Icons';
+import { ProgressPhoto } from '@/components/ProgressPhoto';
 import { Screen } from '@/components/Screen';
 import { SlantBar } from '@/components/Slant';
 import { TrendChart } from '@/components/TrendChart';
-import { listCheckins, type Checkin } from '@/db/checkins';
+import { listCheckins, listProgressPhotos, type Checkin, type ProgressPhoto as Photo } from '@/db/checkins';
 import { getSplit } from '@/db/plan';
 import { STATS, barScale, positionOn, rangeFor, standing, type Range, type StatDef } from '@/lib/body';
 import { estimateCalories, restingBurn } from '@/lib/calories';
-import { formatDay, monthKey, monthName } from '@/lib/dates';
+import { formatDay, monthKey, monthName, timeApart } from '@/lib/dates';
+import { POSE_NAMES } from '@/lib/labels';
 import { easeOut, rise, stagger } from '@/lib/motion';
+import { byPose, mainPose } from '@/lib/progress';
 import { formatNumber } from '@/lib/units';
 import { useProfile, useUnits } from '@/state/profile';
 import { colors, motion, radius, size, space, type } from '@/theme';
@@ -45,6 +48,7 @@ export default function BodyScreen() {
   const [checkins, setCheckins] = useState<Checkin[]>();
   const [trainingDays, setTrainingDays] = useState(0);
   const [trend, setTrend] = useState<TrendKey>('weight');
+  const [photos, setPhotos] = useState<Photo[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -52,8 +56,10 @@ export default function BodyScreen() {
       (async () => {
         const list = await listCheckins(db);
         const split = await getSplit(db);
+        const pics = await listProgressPhotos(db);
         if (!active) return;
         setCheckins(list);
+        setPhotos(pics);
         setTrainingDays(split?.days.filter((d) => d.weekday !== null).length ?? 0);
       })();
       return () => {
@@ -205,6 +211,10 @@ export default function BodyScreen() {
           </Text>
         </Animated.View>
 
+        <Animated.View entering={rise(640)}>
+          <ProgressCard photos={photos} />
+        </Animated.View>
+
         <Animated.View entering={rise(680)} style={styles.history}>
           <Text style={styles.label}>Check-ins</Text>
           <View style={styles.card}>
@@ -240,6 +250,48 @@ function signed(n: number) {
   const r = Number(formatNumber(n));
   if (r === 0) return '0';
   return r > 0 ? `+${r}` : `−${Math.abs(r)}`;
+}
+
+// The first and latest photo of the pose with the most, side by side. Opens Compare.
+function ProgressCard({ photos }: { photos: Photo[] }) {
+  const groups = byPose(photos);
+  const pose = mainPose(groups);
+  const list = pose ? groups[pose] : [];
+  const first = list[0];
+  const latest = list.length >= 2 ? list[list.length - 1] : undefined;
+  const open = () => router.push({ pathname: '/compare', params: pose ? { pose } : {} });
+  return (
+    <View style={[styles.card, styles.progressCard]}>
+      <View style={styles.trendHead}>
+        <Text style={styles.label}>Progress</Text>
+        {pose && (
+          <Pressable accessibilityRole="button" onPress={open} hitSlop={space[3]}>
+            <Text style={styles.link}>Compare</Text>
+          </Pressable>
+        )}
+      </View>
+      {pose && first ? (
+        <>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Compare progress photos"
+            onPress={open}
+            style={({ pressed }) => [styles.photoRow, pressed && styles.pressed]}
+          >
+            <ProgressPhoto uri={first.uri} label={formatDay(first.date)} />
+            <ProgressPhoto uri={latest?.uri} label={latest ? formatDay(latest.date) : 'Next'} />
+          </Pressable>
+          <Text style={styles.meta}>
+            {latest
+              ? `${POSE_NAMES[pose]} · first and latest, ${timeApart(first.date, latest.date)} apart`
+              : 'Take another at a later check-in to see them side by side.'}
+          </Text>
+        </>
+      ) : (
+        <Text style={styles.meta}>Add a photo when you check in. It shows what the scale can’t.</Text>
+      )}
+    </View>
+  );
 }
 
 type StatCardProps = {
@@ -357,6 +409,8 @@ const styles = StyleSheet.create({
   trendCard: { padding: space[4], gap: space[3] },
   trendHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space[2] },
+  progressCard: { padding: space[4], gap: space[3] },
+  photoRow: { flexDirection: 'row', gap: space[2] },
   history: { gap: space[2] },
   historyRow: {
     flexDirection: 'row',

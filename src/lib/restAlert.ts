@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import { AppState, Platform, Vibration } from 'react-native';
 
 import type { RestAlert } from '@/db/profile';
+import { LIVE_ID } from '@/lib/liveWorkout';
 import { colors } from '@/theme';
 
 // Tells you a rest is over when you aren't looking: phone locked, in a pocket, or in
@@ -20,11 +21,12 @@ const VIBRATION = [0, 450, 200, 450];
 const CHANNEL: Record<Exclude<RestAlert, 'off'>, string> = { sound: 'rest-alert', vibrate: 'rest-alert-quiet' };
 const OLD_CHANNELS = ['rest', 'rest-quiet'];
 
-// While the app is open, rest notifications never pop over it.
+// While the app is open, rest notifications never pop over it. The workout's own
+// notification (liveWorkout.ts) still goes in the shade, so it's there once the phone locks.
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
+  handleNotification: async (n) => ({
     shouldShowBanner: false,
-    shouldShowList: false,
+    shouldShowList: n.request.identifier === LIVE_ID,
     shouldPlaySound: false,
     shouldSetBadge: false,
   }),

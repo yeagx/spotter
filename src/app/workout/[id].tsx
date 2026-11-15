@@ -57,9 +57,10 @@ import type { Exercise, Tracking } from '@/db/types';
 import { confirmDestructive, notify } from '@/lib/confirm';
 import { formatClock } from '@/lib/dates';
 import { haptic } from '@/lib/haptics';
+import { clearLiveWorkout, clockTime, onLiveAction, showLiveWorkout, type LiveAction } from '@/lib/liveWorkout';
 import { easeOut, rise, stagger } from '@/lib/motion';
 import { cancelRestEnd, playRestDone, prepareRestAlerts, scheduleRestEnd } from '@/lib/restAlert';
-import { formatRest, schemeLine } from '@/lib/scheme';
+import { formatRest, formatTarget, schemeLine } from '@/lib/scheme';
 import { openSwap } from '@/lib/swapPicker';
 import { formatLift, type UnitsView } from '@/lib/tracking';
 import { formatNumber, parseDecimal, parseWhole } from '@/lib/units';
@@ -166,6 +167,14 @@ const TICK_MS = 500;
 const LATE_MS = 2000;
 
 const isDone = (b: Block) => b.rows.every((r) => r.logId);
+
+// The set to do next: the open exercise's first unticked set, or if it's done, the
+// first unticked set of the next open exercise. Null once everything is ticked.
+function nextSetOf(blocks: Block[], index: number): { bi: number; ri: number } | null {
+  const bi = [...blocks.keys()].map((k) => (index + k) % blocks.length).find((k) => !isDone(blocks[k]));
+  if (bi === undefined) return null;
+  return { bi, ri: blocks[bi].rows.findIndex((r) => !r.logId) };
+}
 
 const topOf = (sets: Lift[], tracking: Tracking) =>
   sets.reduce<Lift | null>((top, s) => (beats(s, top, tracking) ? s : top), null);
@@ -274,10 +283,10 @@ export default function WorkoutScreen() {
   }, []);
 
   // Ask for notification permission as the workout starts, so the first rest can reach a
-  // locked phone. Asked once; Profile > Rest timer > Off skips it.
+  // locked phone and the next set shows on the lock screen. Asked once.
   useEffect(() => {
-    if (alertMode !== 'off') prepareRestAlerts();
-  }, [alertMode]);
+    prepareRestAlerts();
+  }, []);
 
   // Each rest schedules its alert for the moment it ends (+15 s moves it). Skipping takes
   // it back, and so does leaving the workout.
@@ -597,6 +606,51 @@ export default function WorkoutScreen() {
     });
     return () => sub.remove();
   }, [end, state, restingInto, skipRest]);
+
+  // The lock screen keeps up: what's next, or when rest ends, with Log set to tick it
+  // without unlocking. Gone when the workout closes.
+  useEffect(() => {
+    if (state !== 'ready' || !blocks.length) return;
+    const next = nextSetOf(blocks, index);
+    if (!next) {
+      showLiveWorkout({ title: 'Every set ticked', body: 'Finish the session in Spotter.', canLog: false, resting: false });
+      return;
+    }
+    const b = blocks[next.bi];
+    const t = b.item.exercise.tracking;
+    const lift = readRow(b.rows[next.ri], t, units);
+    const what = lift ? formatLift(lift, t, units) : formatTarget(t, b.item);
+    showLiveWorkout({
+      title: `${b.item.exercise.name} · set ${next.ri + 1} of ${b.rows.length}`,
+      body: restEndsAt !== null ? `Rest until ${clockTime(restEndsAt)} · then ${what}` : what,
+      canLog: Boolean(lift),
+      resting: restEndsAt !== null,
+    });
+  }, [state, blocks, index, restEndsAt]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(
+    () => () => {
+      clearLiveWorkout();
+    },
+    [],
+  );
+
+  // Its buttons act on the latest state, so the handler is refreshed every render and
+  // the subscription made once.
+  const liveAction = useRef<(a: LiveAction) => void>(() => {});
+  liveAction.current = (a) => {
+    if (a === 'skip') {
+      skipRest();
+      return;
+    }
+    const next = nextSetOf(blocksRef.current, index);
+    if (!next) return;
+    if (next.bi !== index) {
+      setRestingInto(null);
+      setIndex(next.bi);
+    }
+    toggle(next.bi, next.ri);
+  };
+  useEffect(() => onLiveAction((a) => liveAction.current(a)), []);
 
   if (state === 'missing') {
     return (

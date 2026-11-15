@@ -16,7 +16,7 @@ import { getSplit } from '@/db/plan';
 import type { Sex } from '@/db/profile';
 import { notify } from '@/lib/confirm';
 import { rise, stagger } from '@/lib/motion';
-import { pickProfilePhoto, removeProfilePhoto } from '@/lib/photo';
+import { pickProfilePhoto, removeAppPhoto } from '@/lib/photo';
 import { formatNumber } from '@/lib/units';
 import { APP_VERSION, checkForUpdate, type UpdateResult } from '@/lib/updates';
 import { currentNotes } from '@/lib/whatsNew';
@@ -61,7 +61,7 @@ export default function ProfileScreen() {
       if (!uri) return;
       const old = profile.photoUri;
       await update({ photoUri: uri });
-      removeProfilePhoto(old);
+      removeAppPhoto(old);
     } catch {
       notify('Couldn’t use that photo', 'Try another one.');
     }

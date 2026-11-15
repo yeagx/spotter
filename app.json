@@ -24,7 +24,6 @@
       },
       "predictiveBackGestureEnabled": false,
       "blockedPermissions": [
-        "android.permission.CAMERA",
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
         "android.permission.RECORD_AUDIO",
         "android.permission.SYSTEM_ALERT_WINDOW"
@@ -62,8 +61,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Spotter uses the photos and clips you choose for your profile picture and your own exercises.",
-          "cameraPermission": false,
+          "photosPermission": "Spotter uses the photos and clips you choose for your profile picture, progress photos and your own exercises.",
+          "cameraPermission": "Spotter uses the camera when you take a progress photo at a check-in.",
           "microphonePermission": false
         }
       ],
