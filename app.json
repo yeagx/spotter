@@ -198,7 +198,8 @@
           }
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-background-task"
     ],
     "scheme": "spotter",
     "backgroundColor": "#0B0B0B",

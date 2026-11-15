@@ -15,6 +15,9 @@ import { DialogHost } from '@/components/DialogHost';
 import { Launch } from '@/components/Launch';
 import { initDatabase } from '@/db/init';
 import { KeyboardProvider } from '@/lib/keyboard';
+// Defines the background update check. It has to load with the app, before any screen,
+// so Android can run it with Spotter closed.
+import '@/lib/updateTask';
 import { ProfileProvider, useProfile } from '@/state/profile';
 import { UpdatesProvider } from '@/state/updates';
 import { colors } from '@/theme';

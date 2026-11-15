@@ -5,6 +5,7 @@ import { AppState, Platform, Vibration } from 'react-native';
 
 import type { RestAlert } from '@/db/profile';
 import { LIVE_ID } from '@/lib/liveWorkout';
+import { UPDATE_NOTICE_ID } from '@/lib/updateNotice';
 import { colors } from '@/theme';
 
 // Tells you a rest is over when you aren't looking: phone locked, in a pocket, or in
@@ -22,11 +23,12 @@ const CHANNEL: Record<Exclude<RestAlert, 'off'>, string> = { sound: 'rest-alert'
 const OLD_CHANNELS = ['rest', 'rest-quiet'];
 
 // While the app is open, rest notifications never pop over it. The workout's own
-// notification (liveWorkout.ts) still goes in the shade, so it's there once the phone locks.
+// notification (liveWorkout.ts) still goes in the shade, so it's there once the phone
+// locks, and so does an update found in the background while the app is open.
 Notifications.setNotificationHandler({
   handleNotification: async (n) => ({
     shouldShowBanner: false,
-    shouldShowList: n.request.identifier === LIVE_ID,
+    shouldShowList: n.request.identifier === LIVE_ID || n.request.identifier === UPDATE_NOTICE_ID,
     shouldPlaySound: false,
     shouldSetBadge: false,
   }),

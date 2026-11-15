@@ -22,6 +22,7 @@ import { caughtUpToday, stillOpenDay } from '@/lib/catchUp';
 import { monthName, monthRange, previousMonthKey, startOfDay, startOfWeek } from '@/lib/dates';
 import { rise, stagger } from '@/lib/motion';
 import { dayTitle, daySummary, formatScheme } from '@/lib/scheme';
+import { useUpdateNotices } from '@/lib/updateTap';
 import { WEEK, today, weekdayLetter, weekdayName } from '@/lib/week';
 import { useProfile, useUnits } from '@/state/profile';
 import { useUpdates } from '@/state/updates';
@@ -48,6 +49,7 @@ export default function TodayScreen() {
   const { available: update } = useUpdates();
   const units = useUnits();
   const [data, setData] = useState<TodayData>();
+  useUpdateNotices();
 
   useFocusEffect(
     useCallback(() => {
