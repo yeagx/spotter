@@ -11,9 +11,11 @@ import { FadeScrollView } from '@/components/FadeScrollView';
 import { CameraIcon, ChevronRightIcon } from '@/components/Icons';
 import { PressableScale } from '@/components/PressableScale';
 import { RestSettings } from '@/components/RestSettings';
+import { SessionSettings } from '@/components/SessionSettings';
 import { StackScreen } from '@/components/StackScreen';
 import { getSplit } from '@/db/plan';
 import type { Sex } from '@/db/profile';
+import { backUp, restore } from '@/lib/backupFlow';
 import { notify } from '@/lib/confirm';
 import { rise, stagger } from '@/lib/motion';
 import { pickProfilePhoto, removeAppPhoto } from '@/lib/photo';
@@ -30,12 +32,13 @@ type Check = { state: 'idle' | 'checking' | 'error' } | { state: 'done'; result:
 
 export default function ProfileScreen() {
   const db = useSQLiteContext();
-  const { profile, update } = useProfile();
+  const { profile, update, reload } = useProfile();
   const units = useUnits();
   const [name, setName] = useState(profile?.name ?? '');
   const [splitName, setSplitName] = useState<string | null>(null);
   const [check, setCheck] = useState<Check>({ state: 'idle' });
   const { available, remember } = useUpdates();
+  const [moving, setMoving] = useState<'backup' | 'restore' | null>(null);
 
   useEffect(() => {
     if (profile) setName(profile.name);
@@ -78,6 +81,18 @@ export default function ProfileScreen() {
       ],
     });
     if (i >= 0) update({ sex: options[i] });
+  };
+
+  // One at a time: a backup and a restore never overlap.
+  const move = async (kind: 'backup' | 'restore') => {
+    if (moving) return;
+    setMoving(kind);
+    try {
+      if (kind === 'backup') await backUp(db);
+      else await restore(db, reload);
+    } finally {
+      setMoving(null);
+    }
   };
 
   const runCheck = async () => {
@@ -195,6 +210,37 @@ export default function ProfileScreen() {
 
         <Animated.View entering={rise(460)}>
           <RestSettings profile={profile} update={update} />
+        </Animated.View>
+
+        <Animated.View entering={rise(465)}>
+          <SessionSettings profile={profile} update={update} />
+        </Animated.View>
+
+        <Animated.View entering={rise(470)} style={styles.card}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => move('backup')}
+            disabled={moving !== null}
+            style={[styles.row, styles.divider]}
+          >
+            <View style={styles.rowText}>
+              <Text style={styles.rowLabel}>{moving === 'backup' ? 'Backing up…' : 'Back up'}</Text>
+              <Text style={styles.meta}>Everything in one file, to move to a new phone</Text>
+            </View>
+            <ChevronRightIcon />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => move('restore')}
+            disabled={moving !== null}
+            style={styles.row}
+          >
+            <View style={styles.rowText}>
+              <Text style={styles.rowLabel}>{moving === 'restore' ? 'Restoring…' : 'Restore from a backup'}</Text>
+              <Text style={styles.meta}>Replaces what’s on this phone</Text>
+            </View>
+            <ChevronRightIcon />
+          </Pressable>
         </Animated.View>
 
         <Animated.View entering={rise(480)} style={[styles.card, styles.updates]}>

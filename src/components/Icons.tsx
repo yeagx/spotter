@@ -154,3 +154,25 @@ export const PencilIcon = (p: IconProps) => (
     <Path d="M14.5 6.7l2.8 2.8" />
   </Icon>
 );
+
+// Music controls for whatever is playing in another app.
+export const PauseIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <Path d="M9 6.5v11" />
+    <Path d="M15 6.5v11" />
+  </Icon>
+);
+
+export const NextIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <Path d="M6.5 7l7 5-7 5z" />
+    <Path d="M17.5 7v10" />
+  </Icon>
+);
+
+export const PreviousIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <Path d="M17.5 7l-7 5 7 5z" />
+    <Path d="M6.5 7v10" />
+  </Icon>
+);

@@ -27,7 +27,8 @@ import { DemoPlayer } from '@/components/DemoPlayer';
 import { DrawnCheck } from '@/components/DrawnCheck';
 import { ExerciseNote } from '@/components/ExerciseNote';
 import { FOOTER_CLEARANCE, FadeScrollView } from '@/components/FadeScrollView';
-import { CheckIcon, CloseIcon, PlusIcon, SwapIcon } from '@/components/Icons';
+import { CheckIcon, ChevronDownIcon, CloseIcon, PlusIcon, SwapIcon } from '@/components/Icons';
+import { NowPlayingStrip } from '@/components/NowPlayingStrip';
 import { PinnedFooter } from '@/components/PinnedFooter';
 import { PlateLine } from '@/components/PlateLine';
 import { PressableScale } from '@/components/PressableScale';
@@ -65,6 +66,14 @@ import { openSwap } from '@/lib/swapPicker';
 import { formatLift, type UnitsView } from '@/lib/tracking';
 import { formatNumber, parseDecimal, parseWhole } from '@/lib/units';
 import { useContentColumn } from '@/hooks/useContentColumn';
+import {
+  loadWorkoutUi,
+  saveWorkoutUi,
+  setLive,
+  setWorkoutOpen,
+  takePendingLiveAction,
+  type DraftRow,
+} from '@/state/liveSession';
 import { useProfile, useUnits } from '@/state/profile';
 import { colors, layout, motion, radius, size, space, type } from '@/theme';
 
@@ -165,6 +174,8 @@ const TICK_MS = 500;
 // Coming back to the app well after rest ran out, the alert has already gone off; the
 // in-app sound would only be a second, late one.
 const LATE_MS = 2000;
+// Saving where the workout is waits for typing to pause.
+const SAVE_UI_MS = 400;
 
 const isDone = (b: Block) => b.rows.every((r) => r.logId);
 
@@ -225,19 +236,24 @@ export default function WorkoutScreen() {
   // True when rest ran out by itself, so its alert (maybe just delivered to a locked
   // phone) is left alone; a skip takes it back.
   const restRanOut = useRef(false);
+  const dayName = useRef('');
 
   useEffect(() => {
     (async () => {
       const session = await getSession(db, id);
       const day = session?.splitDayId ? await getDay(db, session.splitDayId) : null;
       if (!session || !day || session.finishedAt) {
+        setLive(null);
         setState('missing');
         return;
       }
+      dayName.current = day.name;
       const logs = await listSetLogs(db, id);
       const counts = await getSetCounts(db, id);
       const swaps = await getSwaps(db, id);
       const order = await getSessionOrder(db, id);
+      // Where the workout was when it was last left: exercise, rest, typed numbers.
+      const ui = await loadWorkoutUi(db, id);
       const built: Block[] = [];
       for (const planned of day.exercises) {
         // An exercise swapped earlier in this session stays swapped when it's resumed.
@@ -251,7 +267,9 @@ export default function WorkoutScreen() {
         const count = Math.max(1, counts.get(item.id) ?? item.sets, ...mine.map((l) => l.setIndex + 1));
         const rows: Row[] = Array.from({ length: count }, (_, i) => {
           const log = mine.find((l) => l.setIndex === i);
-          return log ? toRow(log, item.exercise.tracking, units, log.id) : prefillRow(i, last, item, units);
+          if (log) return toRow(log, item.exercise.tracking, units, log.id);
+          const draft = ui?.drafts[item.id]?.[i];
+          return draft ? { ...draft, logId: null } : prefillRow(i, last, item, units);
         });
         built.push({
           item,
@@ -270,7 +288,23 @@ export default function WorkoutScreen() {
       setStartedAt(session.startedAt);
       commit(built);
       const firstOpen = built.findIndex((b) => !isDone(b));
-      setIndex(firstOpen === -1 ? Math.max(0, built.length - 1) : firstOpen);
+      const valid = (i: number | null | undefined): i is number => i != null && i >= 0 && i < built.length;
+      const stillResting = ui?.restEndsAt != null && ui.restEndsAt > Date.now();
+      if (ui && stillResting) {
+        restNote.current = ui.restNote;
+        setRestEndsAt(ui.restEndsAt);
+        setRestTotal(ui.restTotal);
+        if (valid(ui.restingInto)) setRestingInto(ui.restingInto);
+      }
+      // A rest screen whose rest ran out while away has handed over to the next exercise.
+      const back = ui && !stillResting && valid(ui.restingInto) ? ui.restingInto : ui?.index;
+      setIndex(valid(back) ? back : firstOpen === -1 ? Math.max(0, built.length - 1) : firstOpen);
+      setLive({
+        id,
+        dayName: day.name,
+        startedAt: session.startedAt,
+        restEndsAt: stillResting ? ui!.restEndsAt : null,
+      });
       setState('ready');
     })();
     // Units are read once: the rows hold display text from here on.
@@ -295,12 +329,40 @@ export default function WorkoutScreen() {
     else if (!restRanOut.current) cancelRestEnd();
     restRanOut.current = false;
   }, [restEndsAt, alertMode]);
-  useEffect(
-    () => () => {
-      cancelRestEnd();
-    },
-    [],
-  );
+  // The Resume bar hides while this screen is open (on top, or under a screen it opened).
+  useEffect(() => {
+    setWorkoutOpen(true);
+    return () => setWorkoutOpen(false);
+  }, []);
+
+  // Everything needed to come back to this exact moment is saved as it changes, so
+  // leaving (Back, or the chevron) or Android closing the app in the background loses
+  // nothing. The rest alert and lock-screen card stay up while away; they go when the
+  // session ends.
+  const ended = useRef(false);
+  useEffect(() => {
+    if (state !== 'ready' || ended.current) return;
+    setLive({ id, dayName: dayName.current, startedAt, restEndsAt });
+    const t = setTimeout(() => {
+      if (ended.current) return;
+      const drafts: Record<string, (DraftRow | null)[]> = {};
+      for (const b of blocks) {
+        drafts[b.item.id] = b.rows.map((r) =>
+          r.logId ? null : { kg: r.kg, reps: r.reps, time: r.time, dist: r.dist },
+        );
+      }
+      saveWorkoutUi(db, {
+        id,
+        index,
+        restEndsAt,
+        restTotal,
+        restingInto,
+        restNote: restNote.current,
+        drafts,
+      });
+    }, SAVE_UI_MS);
+    return () => clearTimeout(t);
+  }, [db, id, state, blocks, index, restEndsAt, restTotal, restingInto, startedAt]);
 
   // Rest is over: a sound and a tap if you're looking, and if the rest screen is up, on
   // to the next exercise.
@@ -578,6 +640,11 @@ export default function WorkoutScreen() {
   const finish = useCallback(async () => {
     Keyboard.dismiss();
     const result = await endSession(db, id);
+    ended.current = true;
+    cancelRestEnd();
+    clearLiveWorkout();
+    setLive(null);
+    await saveWorkoutUi(db, null);
     if (result === 'finished') router.replace({ pathname: '/done/[id]', params: { id } });
     else router.back();
   }, [db, id]);
@@ -595,17 +662,24 @@ export default function WorkoutScreen() {
     if (ok) await finish();
   }, [finish]);
 
-  // Android back skips the rest screen, otherwise asks before ending the session
-  // (never silently leaves a session open).
+  // Leaves the workout with the session still running: the Resume bar on every screen
+  // brings you back to the same set, rest and all. Ending is the X.
+  const leave = useCallback(() => {
+    Keyboard.dismiss();
+    haptic.select();
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  }, []);
+
+  // Android back leaves the same way.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (state !== 'ready') return false;
-      if (restingInto !== null) skipRest();
-      else end();
+      leave();
       return true;
     });
     return () => sub.remove();
-  }, [end, state, restingInto, skipRest]);
+  }, [leave, state]);
 
   // The lock screen keeps up: what's next, or when rest ends, with Log set to tick it
   // without unlocking. Gone when the workout closes.
@@ -627,12 +701,6 @@ export default function WorkoutScreen() {
       resting: restEndsAt !== null,
     });
   }, [state, blocks, index, restEndsAt]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(
-    () => () => {
-      clearLiveWorkout();
-    },
-    [],
-  );
 
   // Its buttons act on the latest state, so the handler is refreshed every render and
   // the subscription made once.
@@ -651,6 +719,12 @@ export default function WorkoutScreen() {
     toggle(next.bi, next.ri);
   };
   useEffect(() => onLiveAction((a) => liveAction.current(a)), []);
+  // A lock-screen button pressed while the workout was closed opened it; act on it now.
+  useEffect(() => {
+    if (state !== 'ready') return;
+    const pending = takePendingLiveAction();
+    if (pending) liveAction.current(pending);
+  }, [state]);
 
   if (state === 'missing') {
     return (
@@ -723,15 +797,26 @@ export default function WorkoutScreen() {
       <View style={styles.fill}>
         <View style={[styles.column, isWide && styles.columnWide]}>
           <View style={styles.header}>
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel="Leave for now"
+              accessibilityHint="The session keeps running. Resume it from any screen."
+              onPress={leave}
+              style={styles.close}
+            >
+              <ChevronDownIcon color={colors.ink} size={size.iconMd} />
+            </PressableScale>
+            <View style={styles.headerMid}>
+              <Text style={styles.label}>
+                {index + 1} / {blocks.length}
+              </Text>
+              <Text style={styles.clock} numberOfLines={1}>
+                {formatClock(now - startedAt)}
+              </Text>
+            </View>
             <PressableScale accessibilityRole="button" accessibilityLabel="End session" onPress={end} style={styles.close}>
               <CloseIcon />
             </PressableScale>
-            <Text style={styles.label}>
-              {index + 1} / {blocks.length}
-            </Text>
-            <Text style={styles.clock} numberOfLines={1}>
-              {formatClock(now - startedAt)}
-            </Text>
           </View>
 
           <View style={styles.progress}>
@@ -856,6 +941,7 @@ export default function WorkoutScreen() {
               </FadeScrollView>
 
               <PinnedFooter>
+                <NowPlayingStrip />
                 <View style={styles.status}>{status}</View>
                 <PrimaryButton label={cta.label} onPress={cta.onPress} haptic={cta.quiet ? null : 'press'} />
               </PinnedFooter>
@@ -914,6 +1000,7 @@ function RestScreen({ remaining, total, next, units, onAdd, onSkip }: RestScreen
         </View>
       </Animated.View>
       <PinnedFooter>
+        <NowPlayingStrip />
         <View style={styles.restActions}>
           <PressableScale
             accessibilityRole="button"
@@ -1039,7 +1126,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: { ...type.labelWide, color: colors.inkMuted },
-  clock: { ...type.numeralCaption, color: colors.inkMuted, minWidth: size.tapTarget, textAlign: 'right' },
+  headerMid: { flexDirection: 'row', alignItems: 'baseline', gap: space[3] },
+  clock: { ...type.numeralCaption, color: colors.inkMuted },
   progress: { minHeight: size.tapTarget, justifyContent: 'center' },
   progressTaps: { flexDirection: 'row' },
   progressTap: { flex: 1 },

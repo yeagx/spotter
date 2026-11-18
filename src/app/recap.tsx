@@ -12,6 +12,7 @@ import { DownloadIcon, ShareIcon } from '@/components/Icons';
 import { Logo } from '@/components/Logo';
 import { PressableScale } from '@/components/PressableScale';
 import { ProgressPhoto } from '@/components/ProgressPhoto';
+import { SHARE_OUT, ShareCanvas } from '@/components/ShareCanvas';
 import { SlantStrip } from '@/components/Slant';
 import { StackScreen } from '@/components/StackScreen';
 import { listProgressPhotos } from '@/db/checkins';
@@ -77,8 +78,8 @@ export default function RecapScreen() {
       setBusy(false);
     }
   };
-  const save = () => run(() => saveCard(shot, fileName, 'recap'));
-  const share = () => run(() => shareCard(shot, fileName, `${monthName(month)} recap`));
+  const save = () => run(() => saveCard(shot, fileName, 'recap', SHARE_OUT));
+  const share = () => run(() => shareCard(shot, fileName, `${monthName(month)} recap`, SHARE_OUT));
 
   const lines = recap
     ? [
@@ -119,40 +120,59 @@ export default function RecapScreen() {
       }
     >
       {recap && (
-        // Scrolls on short phones so the card never clips. The ground-coloured frame is
-        // part of the image, so the card's rounded corners sit on dark wherever it's shared.
+        // Scrolls on short phones so the card never clips.
         <FadeScrollView contentContainerStyle={styles.scroll}>
-          <View ref={shot} collapsable={false} style={styles.shot}>
+          <ShareCanvas shotRef={shot}>
             <Animated.View entering={webSafe(cardIn, 120, motion.riseMs)} style={styles.card}>
               <View style={styles.cardTop}>
                 {showMe && profile ? (
                   <View style={styles.identity}>
                     <Avatar name={profile.name} photoUri={profile.photoUri} size={size.avatarS} />
                     <View style={styles.identityText}>
-                      <Text style={styles.name} numberOfLines={1}>
+                      <Text allowFontScaling={false} style={styles.name} numberOfLines={1}>
                         {profile.name}
                       </Text>
-                      <Text style={styles.monthSmall}>{monthName(month)}</Text>
+                      <Text allowFontScaling={false} style={styles.monthSmall}>
+                        {monthName(month)}
+                      </Text>
                     </View>
                   </View>
                 ) : (
-                  <Text style={styles.month}>{monthName(month)}</Text>
+                  <Text allowFontScaling={false} style={styles.month}>
+                    {monthName(month)}
+                  </Text>
                 )}
                 <Logo height={size.logoXs} />
               </View>
 
-              <Animated.View entering={rise(600)} style={styles.count}>
-                <CountUp value={recap.done} delay={600} style={styles.hero} numberOfLines={1} adjustsFontSizeToFit />
-                <Text style={styles.countLabel}>
-                  {recap.done === 1 ? 'session' : 'sessions'} of {recap.planned} planned
-                </Text>
-              </Animated.View>
+              {/* With photos on, before and after sit beside the count, so the card keeps its shape. */}
+              <View style={styles.heroRow}>
+                <Animated.View entering={rise(600)} style={styles.count}>
+                  <CountUp
+                    value={recap.done}
+                    delay={600}
+                    allowFontScaling={false}
+                    style={styles.hero}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  />
+                  <Text allowFontScaling={false} style={styles.countLabel}>
+                    {recap.done === 1 ? 'session' : 'sessions'} of {recap.planned} planned
+                  </Text>
+                </Animated.View>
+                {pair && showPhotos && (
+                  <Animated.View entering={rise()} style={styles.photos}>
+                    <ProgressPhoto uri={pair.before.uri} label={formatDay(pair.before.date)} />
+                    <ProgressPhoto uri={pair.after.uri} label={formatDay(pair.after.date)} />
+                  </Animated.View>
+                )}
+              </View>
 
               {bars > 0 && (
                 <SlantStrip
                   grow
                   delay={800}
-                  height={size.stripTick}
+                  height={size.stripBar}
                   gap={space[1]}
                   bars={Array.from({ length: bars }, (_, i) => ({
                     color: i < recap.done ? colors.spotterRed : colors.surfaceRaised,
@@ -160,36 +180,36 @@ export default function RecapScreen() {
                 />
               )}
 
-              {pair && showPhotos && (
-                <Animated.View entering={rise()} style={styles.photos}>
-                  <ProgressPhoto uri={pair.before.uri} label={formatDay(pair.before.date)} />
-                  <ProgressPhoto uri={pair.after.uri} label={formatDay(pair.after.date)} />
-                </Animated.View>
-              )}
-
-              <View style={styles.grow} />
-
-              <View>
+              <View style={styles.lines}>
                 {lines.map((l, i) => (
                   <Animated.View key={l.label} entering={rise(stagger(i, 1300))} style={styles.line}>
-                    <Text style={styles.lineLabel}>{l.label}</Text>
-                    <Text style={[styles.lineValue, l.red && styles.lineRed]} numberOfLines={2}>
+                    <Text allowFontScaling={false} style={styles.lineLabel}>
+                      {l.label}
+                    </Text>
+                    <Text
+                      allowFontScaling={false}
+                      style={[styles.lineValue, l.red && styles.lineRed]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    >
                       {l.value}
                     </Text>
                   </Animated.View>
                 ))}
               </View>
 
-              {recap.fat && (
-                <Text style={styles.meta}>
-                  Body fat from your check-ins on {formatDay(recap.fat.from)} and {formatDay(recap.fat.to)}.
-                </Text>
-              )}
-              <Animated.Text entering={rise(1600)} style={styles.lock}>
-                locked in.
-              </Animated.Text>
+              <View style={styles.cardEnd}>
+                <Animated.Text allowFontScaling={false} entering={rise(1600)} style={styles.lock}>
+                  locked in.
+                </Animated.Text>
+                {recap.fat && (
+                  <Text allowFontScaling={false} style={styles.meta} numberOfLines={1}>
+                    Body fat {formatDay(recap.fat.from)} → {formatDay(recap.fat.to)}
+                  </Text>
+                )}
+              </View>
             </Animated.View>
-          </View>
+          </ShareCanvas>
         </FadeScrollView>
       )}
     </StackScreen>
@@ -222,36 +242,39 @@ function signedPercent(n: number) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 1 },
-  shot: { flexGrow: 1, backgroundColor: colors.ground },
+  scroll: { flexGrow: 1, justifyContent: 'center' },
   card: {
-    flexGrow: 1,
+    flex: 1,
     padding: space[6],
-    gap: space[6],
+    gap: space[3],
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
     overflow: 'hidden',
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   month: { ...type.labelWide, color: colors.ink },
-  count: { gap: space[1] },
+  heroRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space[3] },
+  count: { flex: 1, gap: space[1] },
+  // Half the card; each photo keeps its 3:4 frame, so the height follows.
+  photos: { width: '50%', flexDirection: 'row', gap: space[2] },
   hero: { ...type.numeralHero, color: colors.ink },
   countLabel: { ...type.body, fontFamily: type.bodyStrong.fontFamily, color: colors.inkMuted },
-  grow: { flexGrow: 1, minHeight: space[2] },
-  photos: { flexDirection: 'row', gap: space[2] },
+  // Takes the slack, so the lines sit low and every month's card ends the same way.
+  lines: { marginTop: 'auto' },
   line: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
     gap: space[3],
-    paddingVertical: space[3],
+    paddingVertical: space[2],
     borderTopWidth: size.divider,
     borderTopColor: colors.hairline,
   },
   lineLabel: { ...type.body, color: colors.inkMuted },
   lineValue: { ...type.numeralR, color: colors.ink, flexShrink: 1, textAlign: 'right' },
   lineRed: { color: colors.redText },
-  meta: { ...type.caption, color: colors.inkMuted },
+  meta: { ...type.caption, color: colors.inkMuted, flexShrink: 1, textAlign: 'right' },
+  cardEnd: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space[3] },
   lock: { ...type.numeralXs, color: colors.ink },
   footer: { gap: space[3] },
   toggle: { flexDirection: 'row', alignItems: 'center', gap: space[3], minHeight: size.tapTarget },

@@ -90,8 +90,8 @@ export async function todayModel(db: SQLiteDatabase): Promise<TodayModel> {
 
   const open = await getOpenSession(db);
   const ids = day.exercises.map((e) => e.exercise.id);
-  // A tall widget can list most of a day, so weights for more than the first few.
-  const last = await lastTopKg(db, ids.slice(0, 8));
+  // The widget's list scrolls through the whole day, so every exercise gets its weight.
+  const last = await lastTopKg(db, ids);
   const state = open ? 'resume' : doneToday.has(day.id) ? 'done' : 'start';
   const n = training.indexOf(day) + 1;
   return {

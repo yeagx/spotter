@@ -11,10 +11,11 @@ import { FadeScrollView } from '@/components/FadeScrollView';
 import { DownloadIcon, ShareIcon } from '@/components/Icons';
 import { Logo } from '@/components/Logo';
 import { PressableScale } from '@/components/PressableScale';
+import { SHARE_OUT, ShareCanvas } from '@/components/ShareCanvas';
 import { SlantStrip } from '@/components/Slant';
 import { StackScreen } from '@/components/StackScreen';
 import { sessionSummary, type SessionSummary } from '@/db/sessions';
-import { formatClock, formatDay, localDate } from '@/lib/dates';
+import { formatDay, localDate } from '@/lib/dates';
 import { haptic } from '@/lib/haptics';
 import { easeOut, rise, stagger, webSafe } from '@/lib/motion';
 import { saveCard, shareCard } from '@/lib/shareCard';
@@ -22,8 +23,8 @@ import { formatLift } from '@/lib/tracking';
 import { useProfile, useUnits } from '@/state/profile';
 import { colors, motion, radius, size, space, type } from '@/theme';
 
-// More exercises than this and the card stops being a card; the rest are counted.
-const MAX_LINES = 7;
+// Two columns of three: more than this and the rest are counted.
+const MAX_LINES = 6;
 
 // The card tips up into place, like a card being handed over (same move as the recap).
 const cardIn = new Keyframe({
@@ -41,9 +42,7 @@ const cardIn = new Keyframe({
   .duration(motion.riseMs)
   .reduceMotion(ReduceMotion.System);
 
-const thousands = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-
-// One session as a card: what was moved, each exercise's top set, and any new bests.
+// One session as a card: how long it took, each exercise's top set, and any new bests.
 // Save or share it as an image.
 export default function SessionCardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -82,15 +81,21 @@ export default function SessionCardScreen() {
   };
 
   const title = summary?.dayName ?? 'Session';
-  const volume = summary ? units.fromKg(summary.volumeKg) : 0;
-  const byVolume = volume > 0;
   const lines = summary?.lines.slice(0, MAX_LINES) ?? [];
+  const rows = Array.from({ length: Math.ceil(lines.length / 2) }, (_, r) => lines.slice(r * 2, r * 2 + 2));
   const more = summary ? summary.lines.length - lines.length : 0;
   const bests = summary?.lines.filter((l) => l.isBest).length ?? 0;
   const mostSets = Math.max(1, ...(summary?.lines.map((l) => l.sets) ?? []));
-  const duration = summary
-    ? formatClock((summary.session.finishedAt ?? Date.now()) - summary.session.startedAt)
-    : '';
+  // Whole minutes: "40 min" reads at a glance anywhere, a stopwatch "39:39" doesn't.
+  const minutes = summary
+    ? Math.max(1, Math.round(((summary.session.finishedAt ?? Date.now()) - summary.session.startedAt) / 60000))
+    : 0;
+  const note = [
+    more > 0 && `+${more} more`,
+    bests > 0 && `${bests} new ${bests === 1 ? 'best' : 'bests'} in red`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <StackScreen
@@ -113,7 +118,7 @@ export default function SessionCardScreen() {
           <View style={styles.actions}>
             <PressableScale
               accessibilityRole="button"
-              onPress={() => run(() => saveCard(shot, fileName, 'session card'))}
+              onPress={() => run(() => saveCard(shot, fileName, 'session card', SHARE_OUT))}
               disabled={!summary || busy}
               style={[styles.action, styles.save]}
             >
@@ -122,7 +127,7 @@ export default function SessionCardScreen() {
             </PressableScale>
             <PressableScale
               accessibilityRole="button"
-              onPress={() => run(() => shareCard(shot, fileName, `${title} · ${formatDay(date)}`))}
+              onPress={() => run(() => shareCard(shot, fileName, `${title} · ${formatDay(date)}`, SHARE_OUT))}
               disabled={!summary || busy}
               style={[styles.action, styles.share]}
             >
@@ -134,50 +139,52 @@ export default function SessionCardScreen() {
       }
     >
       {summary && (
-        // Scrolls on short phones so the card never clips. The ground-coloured frame is
-        // part of the image, so the card's rounded corners sit on dark wherever it's shared.
+        // Scrolls on short phones so the card never clips.
         <FadeScrollView contentContainerStyle={styles.scroll}>
-          <View ref={shot} collapsable={false} style={styles.shot}>
+          <ShareCanvas shotRef={shot}>
             <Animated.View entering={webSafe(cardIn, 120, motion.riseMs)} style={styles.card}>
               <View style={styles.cardTop}>
                 {showMe && profile ? (
                   <View style={styles.identity}>
                     <Avatar name={profile.name} photoUri={profile.photoUri} size={size.avatarS} />
                     <View style={styles.identityText}>
-                      <Text style={styles.name} numberOfLines={1}>
+                      <Text allowFontScaling={false} style={styles.name} numberOfLines={1}>
                         {profile.name}
                       </Text>
-                      <Text style={styles.dateSmall} numberOfLines={1}>
+                      <Text allowFontScaling={false} style={styles.dateSmall} numberOfLines={1}>
                         {title} · {formatDay(date)}
                       </Text>
                     </View>
                   </View>
                 ) : (
                   <View style={styles.identityText}>
-                    <Text style={styles.day} numberOfLines={1}>
+                    <Text allowFontScaling={false} style={styles.day} numberOfLines={1}>
                       {title}
                     </Text>
-                    <Text style={styles.dateSmall}>{formatDay(date)}</Text>
+                    <Text allowFontScaling={false} style={styles.dateSmall} numberOfLines={1}>
+                      {formatDay(date)}
+                    </Text>
                   </View>
                 )}
                 <Logo height={size.logoXs} />
               </View>
 
               <Animated.View entering={rise(500)} style={styles.count}>
-                <CountUp
-                  value={byVolume ? Math.round(volume) : summary.sets}
-                  format={thousands}
-                  delay={500}
-                  style={styles.hero}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                />
-                <Text style={styles.countLabel}>
-                  {byVolume ? `${units.units} moved` : summary.sets === 1 ? 'set' : 'sets'}
-                </Text>
-                <Text style={styles.meta}>
-                  {summary.lines.length} {summary.lines.length === 1 ? 'exercise' : 'exercises'} · {summary.sets}{' '}
-                  {summary.sets === 1 ? 'set' : 'sets'} · {duration}
+                <View style={styles.heroRow}>
+                  <CountUp
+                    value={minutes}
+                    delay={500}
+                    allowFontScaling={false}
+                    style={styles.hero}
+                    numberOfLines={1}
+                  />
+                  <Text allowFontScaling={false} style={styles.heroUnit}>
+                    min
+                  </Text>
+                </View>
+                <Text allowFontScaling={false} style={styles.countLabel} numberOfLines={1}>
+                  {summary.lines.length} {summary.lines.length === 1 ? 'exercise' : 'exercises'} ·{' '}
+                  {summary.sets} {summary.sets === 1 ? 'set' : 'sets'}
                 </Text>
               </Animated.View>
 
@@ -185,7 +192,7 @@ export default function SessionCardScreen() {
               <SlantStrip
                 grow
                 delay={700}
-                height={size.stripTick}
+                height={size.stripBar}
                 gap={space[1]}
                 bars={summary.lines.map((l) => ({
                   color: l.isBest ? colors.spotterRed : colors.inkMuted,
@@ -193,36 +200,45 @@ export default function SessionCardScreen() {
                 }))}
               />
 
-              <View style={styles.grow} />
-
-              <View>
-                {lines.map((l, i) => (
-                  <Animated.View key={l.exerciseId} entering={rise(stagger(i, 1100))} style={styles.line}>
-                    <Text style={styles.lineLabel} numberOfLines={1}>
-                      {l.name}
-                    </Text>
-                    <Text style={[styles.lineValue, l.isBest && styles.lineRed]} numberOfLines={1}>
-                      {formatLift(l.top, l.tracking, units)}
-                    </Text>
-                  </Animated.View>
+              <View style={styles.grid}>
+                {rows.map((row, r) => (
+                  <View key={r} style={styles.row}>
+                    {row.map((l, c) => (
+                      <Animated.View
+                        key={l.exerciseId}
+                        entering={rise(stagger(r * 2 + c, 1100))}
+                        style={styles.cell}
+                      >
+                        <Text allowFontScaling={false} style={styles.cellLabel} numberOfLines={1}>
+                          {l.name}
+                        </Text>
+                        <Text
+                          allowFontScaling={false}
+                          style={[styles.cellValue, l.isBest && styles.red]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                        >
+                          {formatLift(l.top, l.tracking, units)}
+                        </Text>
+                      </Animated.View>
+                    ))}
+                    {row.length === 1 && <View style={styles.cell} />}
+                  </View>
                 ))}
               </View>
 
-              {(more > 0 || bests > 0) && (
-                <Text style={styles.meta}>
-                  {[
-                    more > 0 && `and ${more} more`,
-                    bests > 0 && `${bests} new ${bests === 1 ? 'best' : 'bests'}, in red`,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </Text>
-              )}
-              <Animated.Text entering={rise(1700)} style={styles.lock}>
-                good session.
-              </Animated.Text>
+              <View style={styles.cardEnd}>
+                <Animated.Text allowFontScaling={false} entering={rise(1700)} style={styles.lock}>
+                  good session.
+                </Animated.Text>
+                {note !== '' && (
+                  <Text allowFontScaling={false} style={styles.note} numberOfLines={1}>
+                    {note}
+                  </Text>
+                )}
+              </View>
             </Animated.View>
-          </View>
+          </ShareCanvas>
         </FadeScrollView>
       )}
     </StackScreen>
@@ -230,12 +246,11 @@ export default function SessionCardScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 1 },
-  shot: { flexGrow: 1, backgroundColor: colors.ground },
+  scroll: { flexGrow: 1, justifyContent: 'center' },
   card: {
-    flexGrow: 1,
+    flex: 1,
     padding: space[6],
-    gap: space[6],
+    gap: space[3],
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
     overflow: 'hidden',
@@ -243,23 +258,27 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[3] },
   day: { ...type.heading, color: colors.ink },
   count: { gap: space[1] },
+  heroRow: { flexDirection: 'row', alignItems: 'baseline', gap: space[2] },
   hero: { ...type.numeralHero, color: colors.ink },
+  heroUnit: { ...type.numeralM, color: colors.inkMuted },
   countLabel: { ...type.body, fontFamily: type.bodyStrong.fontFamily, color: colors.inkMuted },
-  grow: { flexGrow: 1, minHeight: space[2] },
-  line: {
+  // Takes the slack, so the exercises sit low and the card ends the same way every time.
+  grid: { marginTop: 'auto' },
+  row: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: space[3],
-    paddingVertical: space[3],
+    gap: space[4],
+    paddingVertical: space[2],
     borderTopWidth: size.divider,
     borderTopColor: colors.hairline,
   },
-  lineLabel: { ...type.body, color: colors.inkMuted, flexShrink: 1 },
-  lineValue: { ...type.numeralXs, color: colors.ink, textAlign: 'right' },
-  lineRed: { color: colors.redText },
-  meta: { ...type.caption, color: colors.inkMuted },
+  cell: { flex: 1, minWidth: 0 },
+  cellLabel: { ...type.caption, color: colors.inkMuted },
+  cellValue: { ...type.numeralXs, color: colors.ink },
+  red: { color: colors.redText },
+  cardEnd: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space[3] },
   lock: { ...type.numeralXs, color: colors.ink },
+  note: { ...type.caption, color: colors.inkMuted, flexShrink: 1, textAlign: 'right' },
+  meta: { ...type.caption, color: colors.inkMuted },
   footer: { gap: space[3] },
   toggle: { flexDirection: 'row', alignItems: 'center', gap: space[3], minHeight: size.tapTarget },
   box: {

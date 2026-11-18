@@ -13,6 +13,7 @@ import { useEffect } from 'react';
 
 import { DialogHost } from '@/components/DialogHost';
 import { Launch } from '@/components/Launch';
+import { LiveSessionHost } from '@/components/LiveSessionHost';
 import { initDatabase } from '@/db/init';
 import { KeyboardProvider } from '@/lib/keyboard';
 // Defines the background update check. It has to load with the app, before any screen,
@@ -74,6 +75,7 @@ export default function RootLayout() {
               <Stack.Screen name="swap" options={{ animation: 'slide_from_bottom' }} />
               <Stack.Screen name="whats-new" options={{ animation: 'slide_from_bottom' }} />
             </Stack>
+            <LiveSessionHost />
             <LaunchGate />
             <DialogHost />
           </UpdatesProvider>

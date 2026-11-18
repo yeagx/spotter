@@ -1,4 +1,4 @@
-import { FlexWidget, SvgWidget, TextWidget } from 'react-native-android-widget';
+import { FlexWidget, ListWidget, SvgWidget, TextWidget } from 'react-native-android-widget';
 
 import { colors, size, space, type } from '@/theme';
 
@@ -7,9 +7,9 @@ import { stripSvg } from './svg';
 import { Card, Label, Line, SetUp, Spacer, lineH, padFor, rowH, rowsThatFit, scaleFor, type Box, type Scale } from './ui';
 
 // Today (4x2): the day label with the week beside it as seven slanted bars, the day's
-// name with a red Start, then as many of its exercises as fit, with last weights, and a
-// line at the bottom counting the rest. Rows drop from the bottom when the widget is short;
-// with room to spare the type steps up and more exercises show.
+// name with a red Start, then every exercise with its last weight in a list that scrolls
+// when the day is longer than the widget, and a line at the bottom with the totals. With
+// room to spare the type steps up.
 
 const WEEK_BAR_W = space[3];
 const WEEK_W = WEEK_BAR_W * 7 + space[1] * 6;
@@ -53,17 +53,14 @@ export function TodayWidget({ m, b }: { m: TodayModel; b: Box }) {
     );
   }
 
-  // Exercises first, then "+N more · X sets". Short on room, the summary keeps count of
-  // what's hidden.
   const all = m.exercises.length;
-  const shown = slots >= all + 1 ? all : Math.max(0, slots - 1);
-  const more = all - shown;
   const summary =
     m.state === 'done'
       ? 'done today. good session.'
-      : more > 0
-        ? `+${more} more · ${m.sets} sets`
-        : `${m.sets} sets`;
+      : `${all} ${all === 1 ? 'exercise' : 'exercises'} · ${m.sets} sets`;
+  // The list scrolls, so it takes whatever room is left above the summary line (one row
+  // of it is the summary's).
+  const listRows = slots - 1;
 
   const pill = m.state === 'done' ? null : m.state === 'resume' ? 'Resume' : 'Start';
   const pillW = pill ? Math.round((pill.length * type.bodyStrong.fontSize * 0.62 + space[4] * 2) * b.fs) : 0;
@@ -95,15 +92,23 @@ export function TodayWidget({ m, b }: { m: TodayModel; b: Box }) {
           </FlexWidget>
         )}
       </FlexWidget>
+      {listRows > 0 ? (
+        // Rows in a list don't take the card's tap, so each one opens the same place.
+        <FlexWidget style={{ width: 'match_parent', flex: 1, marginTop: space[2] }}>
+          <ListWidget style={{ width: 'match_parent', height: 'match_parent' }}>
+            {m.exercises.map((e, i) => (
+              <ExerciseRow key={i} name={e.name} last={e.last} s={s} uri={m.uri} />
+            ))}
+          </ListWidget>
+        </FlexWidget>
+      ) : (
+        <Spacer />
+      )}
       {slots > 0 && (
-        <FlexWidget style={{ width: 'match_parent', flexDirection: 'column', flexGap: s.gap, marginTop: space[2] }}>
-          {m.exercises.slice(0, shown).map((e, i) => (
-            <ExerciseRow key={i} name={e.name} last={e.last} s={s} />
-          ))}
+        <FlexWidget style={{ width: 'match_parent', marginTop: space[1] }}>
+          <Line text={summary} style={s.row} color={colors.inkMuted} />
         </FlexWidget>
       )}
-      <Spacer />
-      {slots > 0 && <Line text={summary} style={s.row} color={colors.inkMuted} />}
     </Card>
   );
 }
@@ -130,9 +135,19 @@ function Header({ label, week, b, s }: { label: string; week: WeekBar[]; b: Box;
 
 // Height follows the text (Michroma's numbers sit in a taller box than the names), so a
 // weight like "25 kg" is never cut off.
-function ExerciseRow({ name, last, s }: { name: string; last: string | null; s: Scale }) {
+function ExerciseRow({ name, last, s, uri }: { name: string; last: string | null; s: Scale; uri: string }) {
   return (
-    <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'center', flexGap: space[2] }}>
+    <FlexWidget
+      clickAction="OPEN_URI"
+      clickActionData={{ uri }}
+      style={{
+        width: 'match_parent',
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexGap: space[2],
+        paddingVertical: s.gap / 2,
+      }}
+    >
       <FlexWidget style={{ flex: 1 }}>
         <Line text={name} style={s.row} />
       </FlexWidget>

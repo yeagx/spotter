@@ -21,6 +21,19 @@ const SOUND_FILE = 'rest_done.wav'; // bundled by the expo-notifications plugin 
 const VIBRATION = [0, 450, 200, 450];
 const CHANNEL: Record<Exclude<RestAlert, 'off'>, string> = { sound: 'rest-alert', vibrate: 'rest-alert-quiet' };
 const OLD_CHANNELS = ['rest', 'rest-quiet'];
+// While Focus mode has Do Not Disturb on, ordinary notifications are held back, Spotter's
+// own included. These two go out as alarms instead, which priority-only Do Not Disturb
+// lets through, so the end of a rest still reaches you. Used only while Focus is on.
+const FOCUS_CHANNEL: Record<Exclude<RestAlert, 'off'>, string> = {
+  sound: 'rest-alert-focus',
+  vibrate: 'rest-alert-focus-quiet',
+};
+let focus = false;
+
+// Focus mode turned Do Not Disturb on (or off again). The next rest uses the right channel.
+export function setRestFocus(on: boolean) {
+  focus = on;
+}
 
 // While the app is open, rest notifications never pop over it. The workout's own
 // notification (liveWorkout.ts) still goes in the shade, so it's there once the phone
@@ -57,6 +70,35 @@ function ensureChannels(): Promise<void> {
       description: 'When a rest is over, without a sound.',
       importance: Notifications.AndroidImportance.HIGH,
       sound: null,
+      enableVibrate: true,
+      vibrationPattern: VIBRATION,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      showBadge: false,
+    });
+    const alarm = {
+      usage: Notifications.AndroidAudioUsage.ALARM,
+      contentType: Notifications.AndroidAudioContentType.SONIFICATION,
+      flags: { enforceAudibility: false, requestHardwareAudioVideoSynchronization: false },
+    };
+    await Notifications.setNotificationChannelAsync(FOCUS_CHANNEL.sound, {
+      name: 'Rest timer in Focus mode',
+      description: 'When a rest is over, through Do Not Disturb.',
+      importance: Notifications.AndroidImportance.HIGH,
+      sound: SOUND_FILE,
+      audioAttributes: alarm,
+      bypassDnd: true,
+      enableVibrate: true,
+      vibrationPattern: VIBRATION,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      showBadge: false,
+    });
+    await Notifications.setNotificationChannelAsync(FOCUS_CHANNEL.vibrate, {
+      name: 'Rest timer in Focus mode, vibrate only',
+      description: 'When a rest is over, through Do Not Disturb, without a sound.',
+      importance: Notifications.AndroidImportance.HIGH,
+      sound: null,
+      audioAttributes: alarm,
+      bypassDnd: true,
       enableVibrate: true,
       vibrationPattern: VIBRATION,
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
@@ -127,7 +169,7 @@ export function scheduleRestEnd(at: number, mode: RestAlert, body: string) {
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: at,
-        channelId: CHANNEL[mode],
+        channelId: (focus ? FOCUS_CHANNEL : CHANNEL)[mode],
         // Android's alarm-clock delivery: on time even with the screen off. The ordinary
         // exact alarm is held back by minutes on some phones' battery savers (OnePlus
         // among them), which is why a locked phone stayed quiet. Shows a small alarm

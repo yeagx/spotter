@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackIcon, CloseIcon } from '@/components/Icons';
 import { PinnedFooter } from '@/components/PinnedFooter';
 import { PressableScale } from '@/components/PressableScale';
+import { ResumeBar } from '@/components/ResumeBar';
 import { useContentColumn } from '@/hooks/useContentColumn';
 import { rise } from '@/lib/motion';
 import { colors, layout, radius, size, space, type } from '@/theme';
@@ -42,6 +43,7 @@ export function StackScreen({ label, children, footer, close }: Props) {
           <View style={styles.headerEnd} />
         </Animated.View>
         <View style={styles.fill}>{children}</View>
+        <ResumeBar />
         {footer && <PinnedFooter>{footer}</PinnedFooter>}
       </View>
     </SafeAreaView>

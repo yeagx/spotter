@@ -21,6 +21,7 @@ import { createProfile, type Goal, type Sex } from '@/db/profile';
 import { useContentColumn } from '@/hooks/useContentColumn';
 import { inLimits } from '@/lib/body';
 import { DEFAULT_TRAINING_DAYS, estimateCalories } from '@/lib/calories';
+import { restore } from '@/lib/backupFlow';
 import { notify } from '@/lib/confirm';
 import { localDate } from '@/lib/dates';
 import { rise, stagger } from '@/lib/motion';
@@ -214,7 +215,18 @@ export default function OnboardingScreen() {
             </Animated.Text>
           </FadeScrollView>
           <PinnedFooter>
-            <PrimaryButton label="Get started" onPress={() => setStep(1)} />
+            <View style={styles.welcomeActions}>
+              <PrimaryButton label="Get started" onPress={() => setStep(1)} />
+              {/* A new phone starts here: bring everything over from the old one instead. */}
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => restore(db, reload)}
+                hitSlop={space[2]}
+                style={styles.restore}
+              >
+                <Text style={styles.restoreLabel}>Moving phones? Restore a backup</Text>
+              </Pressable>
+            </View>
           </PinnedFooter>
         </View>
       </SafeAreaView>
@@ -382,6 +394,9 @@ export default function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
+  welcomeActions: { gap: space[2] },
+  restore: { minHeight: size.tapTarget, alignItems: 'center', justifyContent: 'center' },
+  restoreLabel: { ...type.captionStrong, color: colors.ink },
   root: { flex: 1, backgroundColor: colors.ground },
   fill: { flex: 1 },
   column: {

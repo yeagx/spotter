@@ -1,9 +1,11 @@
 import { Redirect, Tabs, router, usePathname } from 'expo-router';
+import { BottomTabBar } from 'expo-router/tabs';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, useWindowDimensions } from 'react-native';
+import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ResumeBar } from '@/components/ResumeBar';
 import { BodyIcon, PlanIcon, TodayIcon, playTabIcon } from '@/components/TabIcons';
 import { Tour } from '@/components/Tour';
 import { getMeta, setMeta } from '@/db/meta';
@@ -77,6 +79,14 @@ export default function TabsLayout() {
   return (
     <>
       <Tabs
+        // A session left running sits just above the tabs, in the layout (the screens
+        // end above it), so it never covers a screen's own buttons.
+        tabBar={(props) => (
+          <View style={styles.tabArea}>
+            <ResumeBar style={[styles.resume, { marginHorizontal: Math.max(space[4], inset) }]} />
+            <BottomTabBar {...props} />
+          </View>
+        )}
         screenListeners={({ route }) => ({
           tabPress: () => {
             haptic.select();
@@ -124,6 +134,11 @@ export default function TabsLayout() {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  tabArea: { backgroundColor: colors.ground },
+  resume: { marginBottom: space[2] },
+});
 
 const TOUR_KEY = 'tour_done';
 const TAB_ROUTES = ['/', '/plan', '/body'];

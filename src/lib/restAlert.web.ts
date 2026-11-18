@@ -7,3 +7,4 @@ export const scheduleRestEnd = async (_at: number, _mode: RestAlert, _body: stri
 export const cancelRestEnd = async () => {};
 export const playRestDone = (_mode: RestAlert) => {};
 export const restAlertsAllowed = async () => true;
+export const setRestFocus = (_on: boolean) => {};

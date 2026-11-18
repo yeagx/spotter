@@ -201,4 +201,8 @@ export const MIGRATIONS: string[] = [
     UNIQUE (checkin_id, pose)
   );
   `,
+  // 8: Focus mode, Do Not Disturb while a session runs. Off unless turned on.
+  `
+  ALTER TABLE profile ADD COLUMN focus_mode INTEGER NOT NULL DEFAULT 0 CHECK (focus_mode IN (0, 1));
+  `,
 ];
