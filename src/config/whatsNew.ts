@@ -10,6 +10,31 @@ export type WhatsNewEntry = { version: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: '1.7.0',
+    items: [
+      {
+        title: 'Your music, in the workout',
+        line: 'What’s playing in Spotify, YouTube or any player shows above your button, with its controls. Turn it on in Profile.',
+      },
+      {
+        title: 'Focus mode',
+        line: 'Do Not Disturb while you train, off again when you finish. Your rest timer still comes through. In Profile.',
+      },
+      {
+        title: 'Leave mid-session',
+        line: 'Back takes you anywhere in the app. The session keeps running, and Resume brings you to the same set.',
+      },
+      {
+        title: 'Moving phones',
+        line: 'Back up everything to one file in Profile, then restore it on the new phone.',
+      },
+      {
+        title: 'Cards that fit',
+        line: 'Session and month cards now share whole in any chat, with the time you trained up top.',
+      },
+    ],
+  },
+  {
     version: '1.6.1',
     items: [
       {
