@@ -53,15 +53,15 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 - Each exercise logs what makes sense for it: kg × reps, reps only, time, or time and distance for cardio.
 - A rest timer between sets, and a full-screen countdown between exercises (+15 s or skip). Both lengths can be set in Profile, or follow each exercise's rest from the plan.
 - When rest ends with the phone locked or in a pocket, a short sound and two buzzes tell you (or just the buzz, or nothing).
-- The next set sits on the lock screen while you train, with when rest ends. Log set ticks it without unlocking.
+- The next set sits on the lock screen while you train, with when rest ends. Log set ticks it without unlocking. On iPhone it's a Live Activity (lock screen and Dynamic Island) with a live rest countdown.
 - Any set can be removed from today's session, ticked or not; the plan stays as it is.
 - Machine taken? Do another exercise from today's session first, or swap in a different one, for this session only.
 - On barbell lifts, the plates for each side are worked out for the set you're on. Tap to change the bar.
 - A note per exercise ("seat 4, narrow grip") that shows up every time you train it.
 - New bests are called out as they happen. Sessions survive the app being closed and can be resumed.
 - Leave a session without ending it: Back takes you anywhere in the app, and a Resume bar on every screen brings you back to the same set, with the rest timer still running.
-- Music controls in the workout: play, pause, previous and next for whatever's playing (Spotify, YouTube, any player), sent like a headset's buttons. No special access needed. (Android)
-- Focus mode: Do Not Disturb while a session runs, off again when you finish, felt as a click on and a click off. Alarms and the rest timer still come through. (Android)
+- Music controls in the workout: play, pause, previous and next for whatever's playing (Spotify, YouTube, any player), sent like a headset's buttons. No special access needed. On iPhone, for Apple Music: iOS lets no app control another app's music.
+- Focus mode: Do Not Disturb while a session runs, off again when you finish, felt as a click on and a click off. Alarms and the rest timer still come through. On iPhone, where apps can't switch Focus, Spotter runs two shortcuts you add once (Profile shows how).
 
 **See how it's done**
 - Every library exercise has a silent demo loop, half speed, and three plain form cues.
@@ -72,7 +72,7 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 - Each stat is shown against the normal range for your sex, in words ("In normal range · 8–21") as well as on a bar.
 - A trend line for weight, body fat and muscle.
 - Progress photos (front, side, back) with any check-in, taken in the app or picked from the gallery. They stay inside Spotter, never in your gallery. Compare any two dates side by side, with the change in weight and body fat.
-- On Android, a check-in can be filled from Health Connect, where smart scales put their readings. Read-only, and only when you ask.
+- A check-in can be filled from Health Connect (Android) or Apple Health (iPhone), where smart scales put their readings. Read-only, and only when you ask.
 - A daily calorie target estimated from your BMR, goal and training days, or set your own.
 
 **Share it**
@@ -86,18 +86,19 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 - Everything lives in SQLite on your phone. No account, nothing sent anywhere.
 - Moving phones: Profile → Back up puts it all (plan, sessions, check-ins, progress photos, your own exercises and their clips) in one `.spotter` file. Restore it from Profile, or straight from the first screen on the new phone.
 
-**On your home screen** (Android)
+**On your home screen**
 - **Today**: the day's exercises with last weights, filling the widget and fading out at the bottom when the day is longer, the week as slanted bars, and Start.
 - **Month**: sessions done against planned, best lift, new bests, body-fat change.
 - **Best lift**: one lift you pick, its best set and its last six sessions.
 - **Body**: your last check-in against your target. **Start**: one tap into today's session.
 - **Me**: your photo in a ring that fills with this month's sessions.
 - Widgets refresh as you train and fill the space they're given: rows drop when short, type steps up when tall. The widget picker shows a real preview of each.
-- Tap a widget and Spotter opens out of it, with the launcher's own animation (Android 12+ launchers that support it).
+- Tap a widget and Spotter opens out of it, with the launcher's own animation (Android 12+ launchers that support it, and every iPhone).
+- On iPhone the same seven are WidgetKit widgets, in small, medium and large, with Start on the lock screen too. Best lift's lift is picked in Edit Widget (iOS 17+).
 - No widget scrolls, on purpose: some launchers keep every swipe for themselves, so a scrolling widget would work on one phone and fight the app drawer on another.
 
 **Stays current**
-- Every few hours Spotter quietly asks GitHub for the latest release. When there's a new one, you get one notification, a small dot appears on your picture, and Profile → Updates links straight to the new APK (on iPhone, to the website's install steps). *Check for updates* is there too, any time.
+- Every few hours Spotter quietly asks GitHub for the latest release. When there's a new one, you get one notification, a small dot appears on your picture, and Profile → Updates links straight to the new APK (on iPhone, to the website's install steps; with Spotter's source added, AltStore or SideStore updates it in place). *Check for updates* is there too, any time.
 - After an update with something new, a short *What's new* shows once. Fixes-only updates stay silent.
 
 ## Install
@@ -118,7 +119,9 @@ Spotter isn't on the App Store yet. Each release has an unsigned `Spotter-vX.Y.Z
 2. Open it in [AltStore](https://altstore.io), [SideStore](https://sidestore.io) or [Sideloadly](https://sideloadly.io).
 3. Follow its steps to sign it with your Apple ID.
 
-With a free Apple ID the app needs refreshing every 7 days; AltStore and SideStore can do it automatically. Home screen widgets, music controls, Focus mode and Health Connect are Android-only for now.
+With a free Apple ID the app needs refreshing every 7 days; AltStore and SideStore can do it automatically. For updates, add Spotter's source once (`https://spotter-eg.vercel.app/altstore.json`, or the links on the website): AltStore or SideStore then offers each new version and updates in place, keeping your data.
+
+Everything works on both platforms; where iOS draws a line (music controls, Focus mode, installing updates), Spotter does the closest thing iOS allows. [PLATFORM-PARITY.md](PLATFORM-PARITY.md) has the details.
 
 ## Design
 
@@ -145,10 +148,10 @@ The full brand book, tokens and approved mockups live in [`design/`](design/).
 | Keyboard | `react-native-keyboard-controller`, so pinned buttons ride the keyboard frame by frame |
 | Media | Demo player that's source-agnostic: photo frames today, filmed `expo-video` loops later with no UI change |
 | Sharing | `react-native-view-shot` · `expo-sharing` · `expo-media-library` · `expo-clipboard` |
-| Health | [`react-native-health-connect`](https://github.com/matinzd/react-native-health-connect), read-only, for filling a check-in from a scale |
+| Health | [`react-native-health-connect`](https://github.com/matinzd/react-native-health-connect) on Android, [`@kingstinct/react-native-healthkit`](https://github.com/kingstinct/react-native-healthkit) on iPhone, read-only, for filling a check-in from a scale |
 | Alerts | `expo-notifications` (alarm-clock delivery, so a rest alert lands on time with the screen off) · `expo-audio` |
-| Widgets | [`react-native-android-widget`](https://github.com/sAleksovski/react-native-android-widget), drawn from the same SQLite data as the screens. A small patch (`patches/`, applied by `patch-package`) opens the app straight from a tap, so launchers can animate it |
-| Native | `modules/spotter-media`, a local Expo module: media-button presses for music controls, and Do Not Disturb for Focus mode. No special access |
+| Widgets | Android: [`react-native-android-widget`](https://github.com/sAleksovski/react-native-android-widget), patched to open the app straight from a tap so launchers can animate it. iPhone: [`expo-widgets`](https://docs.expo.dev/versions/latest/sdk/widgets/) (WidgetKit, SwiftUI from TSX) for the widgets and the workout's Live Activity, patched to find the App Group a sideloader grants. Both are fed the same models from SQLite. Patches live in `patches/`, applied by `patch-package` |
+| Native | `modules/spotter-media`, a local Expo module: on Android, media-button presses for music controls and Do Not Disturb for Focus mode; on iPhone, Apple Music controls. No special access |
 | Backup | `expo-file-system` file handles stream a single archive (JSON + raw photos and clips), so large clips never sit in memory |
 | Builds | [EAS Build](https://docs.expo.dev/build/introduction/) → APK, and a GitHub Actions macOS runner → unsigned IPA, both attached to GitHub Releases |
 
@@ -184,7 +187,8 @@ src/
   db/             SQLite schema and migrations, the exercise library, queries
   lib/            Formatting, units, body ranges, calories, motion, update check
   state/          The shared profile and units
-  widgets/        Android home screen widgets, their data and the Best lift picker
+  widgets/        Home screen widgets: their data, Android's layouts, and ios/ (the iPhone
+                  widgets and the workout's Live Activity)
   theme.ts        Every colour, size and type style, from design/tokens.json
 modules/          spotter-media: the local native module (music controls, Do Not Disturb)
 patches/          patch-package fixes to dependencies, applied on every install
@@ -207,7 +211,9 @@ npx eas-cli@latest build -p android --profile preview
 gh release create vX.Y.Z Spotter-vX.Y.Z.apk --title "Spotter vX.Y.Z" --notes "..."
 ```
 
-The tag also starts the **iOS IPA** workflow (`.github/workflows/ios-ipa.yml`): it builds an unsigned `Spotter-vX.Y.Z.ipa` on a macOS runner and attaches it to the same release, waiting for the release if the tag came first. It can be run by hand from the Actions tab too.
+The tag also starts the **iOS IPA** workflow (`.github/workflows/ios-ipa.yml`): it builds an unsigned `Spotter-vX.Y.Z.ipa` on a macOS runner, writes each target's entitlements into it (so AltStore, SideStore and Sideloadly grant the App Group and HealthKit), and attaches it to the same release, waiting for the release if the tag came first. Run by hand from the Actions tab, it's a test build: the IPA is kept as the run's artifact and no release changes (tick *attach* to attach it).
+
+Every feature ships on Android and iPhone together; [PLATFORM-PARITY.md](PLATFORM-PARITY.md) is updated in the same commit.
 
 ## Roadmap
 
