@@ -5,6 +5,7 @@
 <p align="center">
   <a href="https://github.com/yeagx/spotter/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/yeagx/spotter?style=flat-square&color=E70B16&labelColor=161616&label=release" /></a>
   <img alt="Android" src="https://img.shields.io/badge/Android-8.0%2B-FFFFFF?style=flat-square&labelColor=161616" />
+  <img alt="iPhone" src="https://img.shields.io/badge/iPhone-iOS%2016.4%2B%20%C2%B7%20IPA-FFFFFF?style=flat-square&labelColor=161616" />
   <img alt="Expo SDK 58" src="https://img.shields.io/badge/Expo-SDK%2058-FFFFFF?style=flat-square&labelColor=161616&logo=expo&logoColor=white" />
   <img alt="Offline first" src="https://img.shields.io/badge/data-on%20your%20phone-FFFFFF?style=flat-square&labelColor=161616" />
 </p>
@@ -16,7 +17,9 @@ Like a good spotter, the app stays behind you, says little, and shows up when it
 No account, no server, no ads. Everything lives on your phone and works in a basement gym with no signal.
 
 <p align="center">
-  <a href="https://github.com/yeagx/spotter/releases/latest"><b>Download the latest APK →</b></a>
+  <a href="https://github.com/yeagx/spotter/releases/latest"><b>Download for Android (APK) →</b></a>
+  &nbsp;·&nbsp;
+  <a href="https://spotter-eg.vercel.app/#ios"><b>iPhone (IPA) →</b></a>
 </p>
 
 ---
@@ -56,6 +59,9 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 - On barbell lifts, the plates for each side are worked out for the set you're on. Tap to change the bar.
 - A note per exercise ("seat 4, narrow grip") that shows up every time you train it.
 - New bests are called out as they happen. Sessions survive the app being closed and can be resumed.
+- Leave a session without ending it: Back takes you anywhere in the app, and a Resume bar on every screen brings you back to the same set, with the rest timer still running.
+- Music controls in the workout: play, pause, previous and next for whatever's playing (Spotify, YouTube, any player), sent like a headset's buttons. No special access needed. (Android)
+- Focus mode: Do Not Disturb while a session runs, off again when you finish, felt as a click on and a click off. Alarms and the rest timer still come through. (Android)
 
 **See how it's done**
 - Every library exercise has a silent demo loop, half speed, and three plain form cues.
@@ -70,29 +76,49 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 - A daily calorie target estimated from your BMR, goal and training days, or set your own.
 
 **Share it**
-- Every finished session has a card: what you moved, each exercise's top set, new bests in red.
+- Every finished session has a card: the minutes you trained, each exercise's top set, new bests in red.
+- Any day trained this week has its card a tap away on Today's week strip.
 - The monthly recap: sessions done against planned, best lift, new bests, and body-fat change when there are two check-ins to compare.
+- Both are fixed 4:5 images (1080 × 1350) with the card inset on dark, so chat apps and feeds show them whole.
 - Save either to your gallery or share it, with or without your name and photo. The recap can show the month's progress photos too, only if you turn it on.
 
+**Your data**
+- Everything lives in SQLite on your phone. No account, nothing sent anywhere.
+- Moving phones: Profile → Back up puts it all (plan, sessions, check-ins, progress photos, your own exercises and their clips) in one `.spotter` file. Restore it from Profile, or straight from the first screen on the new phone.
+
 **On your home screen** (Android)
-- **Today**: the day's first exercises with last weights, the week as slanted bars, and Start.
+- **Today**: the day's exercises with last weights, filling the widget and fading out at the bottom when the day is longer, the week as slanted bars, and Start.
 - **Month**: sessions done against planned, best lift, new bests, body-fat change.
 - **Best lift**: one lift you pick, its best set and its last six sessions.
 - **Body**: your last check-in against your target. **Start**: one tap into today's session.
 - **Me**: your photo in a ring that fills with this month's sessions.
 - Widgets refresh as you train and fill the space they're given: rows drop when short, type steps up when tall. The widget picker shows a real preview of each.
+- Tap a widget and Spotter opens out of it, with the launcher's own animation (Android 12+ launchers that support it).
+- No widget scrolls, on purpose: some launchers keep every swipe for themselves, so a scrolling widget would work on one phone and fight the app drawer on another.
 
 **Stays current**
-- Once a day Spotter quietly asks GitHub for the latest release. When there's a new one, a small dot appears on your picture, and Profile → Updates links straight to the new APK. *Check for updates* is there too, any time.
+- Every few hours Spotter quietly asks GitHub for the latest release. When there's a new one, you get one notification, a small dot appears on your picture, and Profile → Updates links straight to the new APK (on iPhone, to the website's install steps). *Check for updates* is there too, any time.
 - After an update with something new, a short *What's new* shows once. Fixes-only updates stay silent.
 
 ## Install
 
-1. On your Android phone, open the [latest release](https://github.com/yeagx/spotter/releases/latest) and download `Spotter-vX.Y.Z.apk`.
+**Android** (8.0 or later)
+
+1. On your phone, open the [latest release](https://github.com/yeagx/spotter/releases/latest) and download `Spotter-vX.Y.Z.apk`.
 2. Open the file. If Android asks, allow installs from your browser.
 3. Spotter opens on a short welcome and four quick questions, then a guided tour of the three tabs.
 
-Requires Android 8.0 or later. iOS and the app stores will come later.
+Updating installs over your current version and keeps everything. Don't uninstall first: that deletes your data.
+
+**iPhone** (iOS 16.4 or later)
+
+Spotter isn't on the App Store yet. Each release has an unsigned `Spotter-vX.Y.Z.ipa` that you sign with your own Apple ID:
+
+1. Download the IPA from the [latest release](https://github.com/yeagx/spotter/releases/latest) or the [website](https://spotter-eg.vercel.app/#ios).
+2. Open it in [AltStore](https://altstore.io), [SideStore](https://sidestore.io) or [Sideloadly](https://sideloadly.io).
+3. Follow its steps to sign it with your Apple ID.
+
+With a free Apple ID the app needs refreshing every 7 days; AltStore and SideStore can do it automatically. Home screen widgets, music controls, Focus mode and Health Connect are Android-only for now.
 
 ## Design
 
@@ -121,8 +147,10 @@ The full brand book, tokens and approved mockups live in [`design/`](design/).
 | Sharing | `react-native-view-shot` · `expo-sharing` · `expo-media-library` · `expo-clipboard` |
 | Health | [`react-native-health-connect`](https://github.com/matinzd/react-native-health-connect), read-only, for filling a check-in from a scale |
 | Alerts | `expo-notifications` (alarm-clock delivery, so a rest alert lands on time with the screen off) · `expo-audio` |
-| Widgets | [`react-native-android-widget`](https://github.com/sAleksovski/react-native-android-widget), drawn from the same SQLite data as the screens |
-| Builds | [EAS Build](https://docs.expo.dev/build/introduction/) → APK attached to GitHub Releases |
+| Widgets | [`react-native-android-widget`](https://github.com/sAleksovski/react-native-android-widget), drawn from the same SQLite data as the screens. A small patch (`patches/`, applied by `patch-package`) opens the app straight from a tap, so launchers can animate it |
+| Native | `modules/spotter-media`, a local Expo module: media-button presses for music controls, and Do Not Disturb for Focus mode. No special access |
+| Backup | `expo-file-system` file handles stream a single archive (JSON + raw photos and clips), so large clips never sit in memory |
+| Builds | [EAS Build](https://docs.expo.dev/build/introduction/) → APK, and a GitHub Actions macOS runner → unsigned IPA, both attached to GitHub Releases |
 
 ## Run it locally
 
@@ -135,7 +163,7 @@ npm install
 npx expo start
 ```
 
-Scan the QR code with Expo Go. Everything runs there except the home screen widgets and the Health Connect import, which need a build that includes their native modules (`eas build --profile development`, or the release APK). Other useful commands:
+Scan the QR code with Expo Go. Everything runs there except the home screen widgets, music controls, Focus mode and the Health Connect import, which need a build that includes their native modules (the release APK, or a development build with `expo-dev-client`). Other useful commands:
 
 ```bash
 npx expo start --web   # browser preview (SQLite runs on WebAssembly there)
@@ -158,6 +186,9 @@ src/
   state/          The shared profile and units
   widgets/        Android home screen widgets, their data and the Best lift picker
   theme.ts        Every colour, size and type style, from design/tokens.json
+modules/          spotter-media: the local native module (music controls, Do Not Disturb)
+patches/          patch-package fixes to dependencies, applied on every install
+.github/          The workflow that builds the iPhone IPA
 assets/           Icons, the logo and the 134 exercises' demo frames
 design/           Brand book, tokens, mockups, logo
 scripts/          Exercise import and brand-asset generation
@@ -176,10 +207,12 @@ npx eas-cli@latest build -p android --profile preview
 gh release create vX.Y.Z Spotter-vX.Y.Z.apk --title "Spotter vX.Y.Z" --notes "..."
 ```
 
+The tag also starts the **iOS IPA** workflow (`.github/workflows/ios-ipa.yml`): it builds an unsigned `Spotter-vX.Y.Z.ipa` on a macOS runner and attaches it to the same release, waiting for the release if the tag came first. It can be run by hand from the Actions tab too.
+
 ## Roadmap
 
 - Filmed, silent demo clips replacing the photo frames, one exercise at a time.
-- iOS, then the Play Store and App Store.
+- The Play Store and App Store (iPhone is an IPA you sign yourself for now).
 - Friends, with a leaderboard ranked by **% improvement**, not raw weight.
 
 ## Credits
