@@ -14,13 +14,15 @@
 
 Like a good spotter, the app stays behind you, says little, and shows up when it matters. It isn't a calorie tracker, an AI coach or a social feed. It holds your training split, shows you how each movement is done, logs every set with last week's numbers already filled in, and turns your scale or body scans into one calm trend.
 
-No account, no server, no ads. Everything lives on your phone and works in a basement gym with no signal.
+No account, no server, no ads. Everything lives on your phone and works in a basement gym with no signal. **Free on Android and iPhone**, the same app and the same features on both.
 
-<p align="center">
-  <a href="https://github.com/yeagx/spotter/releases/latest"><b>Download for Android (APK) →</b></a>
-  &nbsp;·&nbsp;
-  <a href="https://spotter-eg.vercel.app/#ios"><b>iPhone (IPA) →</b></a>
-</p>
+| | Android | iPhone |
+|---|---|---|
+| **Get it** | [Download the APK](https://github.com/yeagx/spotter/releases/latest) | [Download the IPA](https://github.com/yeagx/spotter/releases/latest) and sign it with your Apple ID ([how](https://spotter-eg.vercel.app/#ios)) |
+| **Needs** | Android 8.0 or newer | iOS 16.4 or newer, plus AltStore, SideStore or Sideloadly |
+| **Updates** | Profile → Check for updates, then install over the old one | Add [Spotter's source](https://spotter-eg.vercel.app/altstore.json) to AltStore or SideStore once; it updates in place |
+
+<p align="center"><a href="https://spotter-eg.vercel.app"><b>spotter-eg.vercel.app →</b></a> picks the right one for your phone.</p>
 
 ---
 
@@ -61,6 +63,7 @@ No account, no server, no ads. Everything lives on your phone and works in a bas
 - New bests are called out as they happen. Sessions survive the app being closed and can be resumed.
 - Leave a session without ending it: Back takes you anywhere in the app, and a Resume bar on every screen brings you back to the same set, with the rest timer still running.
 - Music controls in the workout: play, pause, previous and next for whatever's playing (Spotify, YouTube, any player), sent like a headset's buttons. No special access needed. On iPhone, for Apple Music: iOS lets no app control another app's music.
+- Waves that follow the song (Android): the music strip's three bars move with the bass, mids and treble of what's playing. It's opt-in, asked once when you first open the player, because Android only shares those levels with the Record audio permission; Spotter reads loudness only and records nothing. On iPhone, where no app can hear another, the bars keep a loop that follows play and pause.
 - Focus mode: Do Not Disturb while a session runs, off again when you finish, felt as a click on and a click off. Alarms and the rest timer still come through. On iPhone, where apps can't switch Focus, Spotter runs two shortcuts you add once (Profile shows how).
 
 **See how it's done**
@@ -118,6 +121,7 @@ Spotter isn't on the App Store yet. Each release has an unsigned `Spotter-vX.Y.Z
 1. Download the IPA from the [latest release](https://github.com/yeagx/spotter/releases/latest) or the [website](https://spotter-eg.vercel.app/#ios).
 2. Open it in [AltStore](https://altstore.io), [SideStore](https://sidestore.io) or [Sideloadly](https://sideloadly.io).
 3. Follow its steps to sign it with your Apple ID.
+4. If iPhone says the developer isn't trusted: Settings → General → VPN & Device Management → your Apple ID → Trust. If it asks for Developer Mode: Settings → Privacy & Security → Developer Mode → On, then restart.
 
 With a free Apple ID the app needs refreshing every 7 days; AltStore and SideStore can do it automatically. For updates, add Spotter's source once (`https://spotter-eg.vercel.app/altstore.json`, or the links on the website): AltStore or SideStore then offers each new version and updates in place, keeping your data.
 
@@ -151,7 +155,7 @@ The full brand book, tokens and approved mockups live in [`design/`](design/).
 | Health | [`react-native-health-connect`](https://github.com/matinzd/react-native-health-connect) on Android, [`@kingstinct/react-native-healthkit`](https://github.com/kingstinct/react-native-healthkit) on iPhone, read-only, for filling a check-in from a scale |
 | Alerts | `expo-notifications` (alarm-clock delivery, so a rest alert lands on time with the screen off) · `expo-audio` |
 | Widgets | Android: [`react-native-android-widget`](https://github.com/sAleksovski/react-native-android-widget), patched to open the app straight from a tap so launchers can animate it. iPhone: [`expo-widgets`](https://docs.expo.dev/versions/latest/sdk/widgets/) (WidgetKit, SwiftUI from TSX) for the widgets and the workout's Live Activity, patched to find the App Group a sideloader grants. Both are fed the same models from SQLite. Patches live in `patches/`, applied by `patch-package` |
-| Native | `modules/spotter-media`, a local Expo module: on Android, media-button presses for music controls and Do Not Disturb for Focus mode; on iPhone, Apple Music controls. No special access |
+| Native | `modules/spotter-media`, a local Expo module: on Android, media-button presses for music controls, Do Not Disturb for Focus mode, and the output mix's loudness (`Visualizer`) for the live waves; on iPhone, Apple Music controls |
 | Backup | `expo-file-system` file handles stream a single archive (JSON + raw photos and clips), so large clips never sit in memory |
 | Builds | [EAS Build](https://docs.expo.dev/build/introduction/) → APK, and a GitHub Actions macOS runner → unsigned IPA, both attached to GitHub Releases |
 
