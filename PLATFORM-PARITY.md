@@ -8,7 +8,7 @@ How iOS is built and tested: there's no Mac and no iPhone on hand. The GitHub Ac
 
 Status: **works** = same behaviour on both. **Partial** = there on iOS, but weaker. **Missing** = not on iOS yet. **Apple doesn't allow** = no public iOS API does it; the closest equivalent is proposed.
 
-Last audited: v1.7.2.
+Last audited: v1.7.2. Every row below builds: test IPA from commit `2889741` ([run 44583487410](https://github.com/yeagx/spotter/actions/runs/44583487410)), with the App Group in the app and the widget extension, and HealthKit in the app. Nothing here has been run on an iPhone yet; the test checklist covers each row.
 
 ## Shared (no platform code)
 
