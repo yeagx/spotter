@@ -7,8 +7,10 @@ export const GITHUB_REPO = 'yeagx/spotter';
 export const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
 
 // iPhone builds are an unsigned IPA that people sign themselves (AltStore, SideStore,
-// Sideloadly), so an update can't be a one-tap download: it opens the website's iPhone
-// section, which links the new IPA and says how to install it.
+// Sideloadly), and iOS lets no app install another, so an update can't be a one-tap
+// download: it opens the website's iPhone section, which links the new IPA and Spotter's
+// AltStore/SideStore source (/altstore.json). With the source added, AltStore or
+// SideStore offers each new version itself and updates Spotter in place, data kept.
 export const IOS_INSTALL_PAGE = 'https://spotter-eg.vercel.app/#ios';
 
 type Version = [number, number, number];
