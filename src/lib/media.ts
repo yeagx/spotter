@@ -2,10 +2,12 @@ import { requireOptionalNativeModule } from 'expo';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 
-// Bridge to modules/spotter-media (Android): music controls sent as media-button presses
-// to whichever app is playing, whether music is playing at all, and Do Not Disturb for
-// Focus mode. None of it needs special access. On web, iOS, Expo Go or an APK built
-// before the module existed, it's absent and everything here reports "not available".
+// Bridge to modules/spotter-media. On Android: music controls sent as media-button
+// presses to whichever app is playing, whether music is playing at all, and Do Not
+// Disturb for Focus mode, none of it needing special access. On iPhone: the same music
+// controls for Apple Music (the only player iOS lets another app control); no Do Not
+// Disturb (Focus mode there runs Shortcuts, lib/focus.ios.ts). On web, Expo Go or a build
+// without the module, it's absent and everything here reports "not available".
 
 export type MediaAction = 'play' | 'pause' | 'toggle' | 'next' | 'previous';
 
@@ -18,7 +20,7 @@ type Native = {
   setInterruptionFilter(filter: number): boolean;
 };
 
-const native = Platform.OS === 'android' ? requireOptionalNativeModule<Native>('SpotterMedia') : null;
+const native = Platform.OS === 'web' ? null : requireOptionalNativeModule<Native>('SpotterMedia');
 
 const safe = <T,>(fn: () => T, fallback: T): T => {
   try {
@@ -30,8 +32,15 @@ const safe = <T,>(fn: () => T, fallback: T): T => {
 
 // ---------- Music ----------
 
-// This build can control other apps' music.
+// This build can control music (any player on Android, Apple Music on iPhone).
 export const mediaSupported = native != null;
+
+// What the controls reach, as the strip and the setting name it.
+export const musicSource = Platform.OS === 'ios' ? 'Apple Music' : 'Music';
+export const musicHint =
+  Platform.OS === 'ios'
+    ? 'Play, pause and skip Apple Music from the workout screen, once it’s playing. iPhone doesn’t let one app control another’s music, so Spotify and YouTube aren’t included.'
+    : 'Play, pause and skip whatever’s playing (Spotify, YouTube, any player) from the workout screen, once music starts.';
 
 export const isMusicActive = () => safe(() => native?.isMusicActive() ?? false, false);
 export const mediaControl = (action: MediaAction) => safe(() => native?.sendMediaKey(action) ?? false, false);
@@ -88,7 +97,7 @@ export function useMusic(): { playing: boolean; heard: boolean; press: (action: 
 export const DND_OFF = 1; // ALL: everything comes through
 export const DND_PRIORITY = 2; // priority only (alarms included)
 
-export const dndSupported = native != null;
+export const dndSupported = Platform.OS === 'android' && native != null;
 export const hasDndAccess = () => safe(() => native?.hasDndAccess() ?? false, false);
 export const openDndSettings = () => safe(() => native?.openDndSettings() ?? false, false);
 export const getDnd = () => safe(() => native?.getInterruptionFilter() ?? 0, 0);

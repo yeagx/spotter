@@ -1,6 +1,9 @@
 {
-  "platforms": ["android"],
+  "platforms": ["android", "apple"],
   "android": {
     "modules": ["expo.modules.spottermedia.SpotterMediaModule"]
+  },
+  "apple": {
+    "modules": ["SpotterMediaModule"]
   }
 }

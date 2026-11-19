@@ -4,7 +4,7 @@ import { AppState, StyleSheet, Text, View } from 'react-native';
 import { showDialog } from '@/components/DialogHost';
 import { Segmented } from '@/components/Segmented';
 import type { Profile } from '@/db/profile';
-import { dndSupported, hasDndAccess, mediaSupported, openDndSettings } from '@/lib/media';
+import { dndSupported, hasDndAccess, mediaSupported, musicHint, openDndSettings } from '@/lib/media';
 import { colors, radius, size, space, type } from '@/theme';
 
 // "During a session" in Profile: music controls on the workout screen, and Focus mode.
@@ -60,10 +60,7 @@ export function SessionSettings({ profile, update }: Props) {
         <View style={styles.block}>
           <View style={styles.rowText}>
             <Text style={styles.rowLabel}>Music</Text>
-            <Text style={styles.hint}>
-              Play, pause and skip whatever’s playing (Spotify, YouTube, any player) from the workout screen, once
-              music starts.
-            </Text>
+            <Text style={styles.hint}>{musicHint}</Text>
           </View>
           <Segmented
             options={ON_OFF}

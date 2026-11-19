@@ -10,7 +10,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.yeager.spotter",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppleMusicUsageDescription": "Spotter shows play, pause and skip for Apple Music during a workout."
       }
     },
     "android": {

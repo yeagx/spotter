@@ -18,13 +18,14 @@ import { ChevronDownIcon, NextIcon, PauseIcon, PlayIcon, PreviousIcon } from '@/
 import { PressableScale } from '@/components/PressableScale';
 import { SlantBar } from '@/components/Slant';
 import { haptic } from '@/lib/haptics';
-import { mediaSupported, useMusic, type MediaAction } from '@/lib/media';
+import { mediaSupported, musicSource, useMusic, type MediaAction } from '@/lib/media';
 import { easeOut, rise } from '@/lib/motion';
 import { useProfile } from '@/state/profile';
 import { colors, motion, radius, size, space, type } from '@/theme';
 
 // Music controls above the workout's button: whatever app is playing (Spotify, YouTube,
-// any player) takes play/pause, previous and next, like a headset's buttons. Slim by
+// any player) takes play/pause, previous and next, like a headset's buttons; on iPhone,
+// Apple Music, the one player iOS lets another app control. Slim by
 // default; tap it to open the full controls. It appears once music has played since
 // Spotter opened, can be turned off in Profile, and hides while the keyboard is up so it
 // never crowds a set row.
@@ -78,7 +79,7 @@ export function NowPlayingStrip() {
       <View style={styles.row}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Music, ${playing ? 'playing' : 'paused'}`}
+          accessibilityLabel={`${musicSource}, ${playing ? 'playing' : 'paused'}`}
           accessibilityHint={open ? 'Hides the music controls' : 'Shows previous and next'}
           accessibilityState={{ expanded: open }}
           onPress={() => {
@@ -89,7 +90,7 @@ export function NowPlayingStrip() {
         >
           <Equalizer playing={playing} />
           <View style={styles.text}>
-            <Text style={styles.title}>Music</Text>
+            <Text style={styles.title}>{musicSource}</Text>
             <Text style={styles.sub}>{playing ? 'Playing' : 'Paused'}</Text>
           </View>
           <Animated.View style={chevron}>
