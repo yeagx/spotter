@@ -19,6 +19,9 @@ const SOUND_FILE = 'rest_done.wav'; // bundled by the expo-notifications plugin 
 // felt like ordinary haptics). Android fixes a channel's vibration when it's created, so
 // a stronger pattern needs new channel ids; the old ones are deleted.
 const VIBRATION = [0, 450, 200, 450];
+// iOS buzzes for a fixed ~400 ms and reads the numbers as pauses before each buzz, so
+// the Android pattern would be four buzzes there. This is the same two, 650 ms apart.
+const IOS_VIBRATION = [0, 650];
 const CHANNEL: Record<Exclude<RestAlert, 'off'>, string> = { sound: 'rest-alert', vibrate: 'rest-alert-quiet' };
 const OLD_CHANNELS = ['rest', 'rest-quiet'];
 // While Focus mode has Do Not Disturb on, ordinary notifications are held back, Spotter's
@@ -208,7 +211,7 @@ export function playRestDone(mode: RestAlert) {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     return;
   }
-  Vibration.vibrate(VIBRATION);
+  Vibration.vibrate(Platform.OS === 'ios' ? IOS_VIBRATION : VIBRATION);
   if (mode !== 'sound') return;
   try {
     if (!player) {

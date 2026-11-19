@@ -6,6 +6,9 @@
 #
 # Runs when a release tag vX.Y.Z is pushed (the same tags as the APK), or by hand from
 # the Actions tab. The tag must match app.json's version.
+#
+# By hand with "attach" off (the default), it's a test build: the IPA (named after the
+# commit) is kept as the run's artifact for testing on an iPhone, and no release changes.
 
 name: iOS IPA
 
@@ -14,8 +17,12 @@ on:
     tags: ['v*.*.*']
   workflow_dispatch:
     inputs:
+      attach:
+        description: Attach the IPA to the release (off = a test build, kept as the run's artifact)
+        type: boolean
+        default: false
       tag:
-        description: Release to attach the IPA to, e.g. v1.7.2. Leave empty for app.json's version.
+        description: Release to attach to, e.g. v1.7.2. Leave empty for app.json's version.
         required: false
         default: ''
 
@@ -42,8 +49,14 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           INPUT_TAG: ${{ inputs.tag }}
+          ATTACH: ${{ inputs.attach }}
         run: |
           APP_VERSION=$(node -p "require('./app.json').expo.version")
+          if [ "$EVENT" != "push" ] && [ "$ATTACH" != "true" ]; then
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "ipa=Spotter-v$APP_VERSION-test-${GITHUB_SHA::7}.ipa" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ "$EVENT" = "push" ]; then TAG="$GITHUB_REF_NAME"; else TAG="$INPUT_TAG"; fi
           [ -z "$TAG" ] && TAG="v$APP_VERSION"
           if [ "$TAG" != "v$APP_VERSION" ]; then
@@ -111,6 +124,35 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             -quiet
 
+      # An unsigned build carries no entitlements, and AltStore, SideStore and Sideloadly
+      # read them from the app to know what to ask Apple for (App Groups for the widgets,
+      # HealthKit). An ad-hoc signature with each target's entitlements file puts them
+      # there; the sideloader then signs over it with the user's Apple ID. Inside out:
+      # frameworks, then extensions, then the app.
+      - name: Write the entitlements into the app
+        run: |
+          APP=$(ls -d "$RUNNER_TEMP/Spotter.xcarchive/Products/Applications/"*.app | head -1)
+          NAME=$(basename "$APP" .app)
+          sign() { # bundle, entitlements file (may not exist)
+            if [ -f "$2" ]; then
+              echo "Signing $(basename "$1") with $2"; cat "$2"
+              codesign --force --sign - --timestamp=none --generate-entitlement-der --entitlements "$2" "$1"
+            else
+              echo "Signing $(basename "$1") (no entitlements)"
+              codesign --force --sign - --timestamp=none "$1"
+            fi
+          }
+          find "$APP" -depth \( -name "*.framework" -o -name "*.dylib" \) -print0 | while IFS= read -r -d '' f; do
+            codesign --force --sign - --timestamp=none "$f"
+          done
+          for EXT in "$APP"/PlugIns/*.appex; do
+            [ -e "$EXT" ] || continue
+            E=$(basename "$EXT" .appex)
+            sign "$EXT" "ios/$E/$E.entitlements"
+          done
+          sign "$APP" "ios/$NAME/$NAME.entitlements"
+          codesign -d --entitlements - --xml "$APP" 2>/dev/null | head -c 2000; echo
+
       - name: Package the IPA
         env:
           IPA: ${{ steps.version.outputs.ipa }}
@@ -131,6 +173,7 @@ jobs:
       # The tag is usually created with the release, but a pushed tag can come first: wait
       # for the release (up to 45 minutes) rather than miss it.
       - name: Attach the IPA to the release
+        if: steps.version.outputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
