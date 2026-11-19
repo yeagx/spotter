@@ -10,6 +10,19 @@ export type WhatsNewEntry = { version: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: '1.7.2',
+    items: [
+      {
+        title: 'A fuller widget',
+        line: 'The Today widget fills its space with your exercises, and a long day fades out at the bottom instead of turning pages.',
+      },
+      {
+        title: 'Opens from the widget',
+        line: 'Tap any Spotter widget and the app grows out of it, on phones whose launcher supports it.',
+      },
+    ],
+  },
+  {
     version: '1.7.1',
     items: [
       {
