@@ -202,7 +202,116 @@
         }
       ],
       "expo-asset",
-      "expo-background-task"
+      "expo-background-task",
+      [
+        "expo-widgets",
+        {
+          "groupIdentifier": "group.com.yeager.spotter",
+          "widgets": [
+            {
+              "name": "Today",
+              "displayName": "Today",
+              "description": "Today’s session and your week.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemMedium",
+                  "systemLarge"
+                ],
+                "contentMarginsDisabled": true
+              }
+            },
+            {
+              "name": "Month",
+              "displayName": "Month",
+              "description": "Sessions this month, best lift and new bests.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemMedium",
+                  "systemLarge"
+                ],
+                "contentMarginsDisabled": true
+              }
+            },
+            {
+              "name": "BestLift",
+              "displayName": "Best lift",
+              "description": "One lift, its best and its last six sessions.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ],
+                "contentMarginsDisabled": true,
+                "configuration": {
+                  "title": "Best lift",
+                  "description": "Pick the lift it shows.",
+                  "parameters": {
+                    "lift": {
+                      "title": "Lift",
+                      "type": "enum",
+                      "default": "top",
+                      "values": [
+                        {
+                          "name": "Heaviest lift",
+                          "value": "top"
+                        }
+                      ],
+                      "dynamic": true
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Body",
+              "displayName": "Body",
+              "description": "Your last check-in.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ],
+                "contentMarginsDisabled": true
+              }
+            },
+            {
+              "name": "Start",
+              "displayName": "Start",
+              "description": "Start today’s session in one tap.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "accessoryCircular"
+                ],
+                "contentMarginsDisabled": true
+              }
+            },
+            {
+              "name": "Me",
+              "displayName": "Me",
+              "description": "Your month around your photo.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemMedium",
+                  "systemLarge"
+                ],
+                "contentMarginsDisabled": true
+              }
+            },
+            {
+              "name": "MeSmall",
+              "displayName": "Me (small)",
+              "description": "Your photo and this month’s sessions.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall"
+                ],
+                "contentMarginsDisabled": true
+              }
+            }
+          ]
+        }
+      ]
     ],
     "scheme": "spotter",
     "backgroundColor": "#0B0B0B",

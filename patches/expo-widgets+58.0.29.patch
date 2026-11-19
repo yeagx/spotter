@@ -1,0 +1,97 @@
+diff --git a/node_modules/expo-widgets/ios/Widgets/TimelineProvider.swift b/node_modules/expo-widgets/ios/Widgets/TimelineProvider.swift
+index f339d98..27e94ce 100644
+--- a/node_modules/expo-widgets/ios/Widgets/TimelineProvider.swift
++++ b/node_modules/expo-widgets/ios/Widgets/TimelineProvider.swift
+@@ -8,8 +8,7 @@ public struct WidgetsTimelineProvider: TimelineProvider {
+   public func getSnapshot(
+     in context: Context, completion: @escaping @Sendable (WidgetsTimelineEntry) -> Void
+   ) {
+-    let groupIdentifier =
+-      Bundle.main.object(forInfoDictionaryKey: "ExpoWidgetsAppGroupIdentifier") as? String
++    let groupIdentifier = WidgetsStorage.appGroupIdentifier
+     guard let groupIdentifier else {
+       completion(WidgetsTimelineEntry(date: Date(), name: name, props: WidgetsLayoutRegistry.initialProps(for: name), entryIndex: nil))
+       return
+@@ -23,10 +22,10 @@ public struct WidgetsTimelineProvider: TimelineProvider {
+     in context: Context,
+     completion: @escaping @Sendable (Timeline<WidgetsTimelineEntry>) -> Void
+   ) {
+-    let groupIdentifier =
+-      Bundle.main.object(forInfoDictionaryKey: "ExpoWidgetsAppGroupIdentifier") as? String
++    let groupIdentifier = WidgetsStorage.appGroupIdentifier
+     guard let groupIdentifier else {
+-      fatalError("Could not get the app group identifier from Info.plist")
++      completion(Timeline(entries: [WidgetsTimelineEntry(date: Date(), name: name, props: WidgetsLayoutRegistry.initialProps(for: name), entryIndex: nil)], policy: .atEnd))
++      return
+     }
+ 
+     let entries = parseTimeline(identifier: groupIdentifier, name: name, family: context.family)
+diff --git a/node_modules/expo-widgets/ios/WidgetsStorage.swift b/node_modules/expo-widgets/ios/WidgetsStorage.swift
+index 86f9d6c..2ff65ef 100644
+--- a/node_modules/expo-widgets/ios/WidgetsStorage.swift
++++ b/node_modules/expo-widgets/ios/WidgetsStorage.swift
+@@ -1,6 +1,62 @@
++import CoreText
++import Foundation
++
+ public enum WidgetsStorage {
+-  public static var appGroupIdentifier: String? = Bundle.main.object(forInfoDictionaryKey: "ExpoWidgetsAppGroupIdentifier") as? String
+-  static let defaults = UserDefaults(suiteName: appGroupIdentifier)
++  // Spotter patch: sideloaders (AltStore, SideStore, Sideloadly) sign the app with the
++  // user's own Apple ID, and Apple makes them rename the app group (it has to be unique
++  // per team). So the group in Info.plist may not be the one the app actually has. Use
++  // the first group this app or extension is really entitled to: from its provisioning
++  // profile, then AltStore's ALTAppGroups, then the declared one.
++  public static var appGroupIdentifier: String? = resolveAppGroup()
++  static let defaults: UserDefaults? = {
++    registerSharedFonts()
++    return UserDefaults(suiteName: appGroupIdentifier)
++  }()
++
++  static func resolveAppGroup() -> String? {
++    let declared = Bundle.main.object(forInfoDictionaryKey: "ExpoWidgetsAppGroupIdentifier") as? String
++    var candidates = provisionedAppGroups()
++    candidates += (Bundle.main.object(forInfoDictionaryKey: "ALTAppGroups") as? [String]) ?? []
++    if let declared {
++      // A renamed group keeps the declared one as its start ("group.x" -> "group.x.TEAMID").
++      candidates = candidates.filter { $0.hasPrefix(declared) } + candidates.filter { !$0.hasPrefix(declared) }
++      candidates.append(declared)
++    }
++    for id in candidates where !id.contains("*") {
++      if FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: id) != nil {
++        return id
++      }
++    }
++    return declared
++  }
++
++  private static func provisionedAppGroups() -> [String] {
++    guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
++          let data = try? Data(contentsOf: url),
++          let start = data.range(of: Data("<?xml".utf8)),
++          let end = data.range(of: Data("</plist>".utf8), in: start.lowerBound..<data.endIndex),
++          let plist = try? PropertyListSerialization.propertyList(
++            from: data.subdata(in: start.lowerBound..<end.upperBound), options: [], format: nil
++          ) as? [String: Any],
++          let entitlements = plist["Entitlements"] as? [String: Any] else {
++      return []
++    }
++    return entitlements["com.apple.security.application-groups"] as? [String] ?? []
++  }
++
++  // Spotter patch: the app copies its fonts (Michroma, Manrope) into the shared
++  // container's ExpoWidgets/fonts, so widgets and the Live Activity can use them.
++  private static func registerSharedFonts() {
++    guard let appGroupIdentifier,
++          let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) else {
++      return
++    }
++    let folder = container.appendingPathComponent("ExpoWidgets/fonts", isDirectory: true)
++    let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
++    for file in files where ["ttf", "otf"].contains(file.pathExtension.lowercased()) {
++      CTFontManagerRegisterFontsForURL(file as CFURL, .process, nil)
++    }
++  }
+ 
+   static func set(_ value: [String: Any], forKey key: String) {
+     guard let defaults else { return }

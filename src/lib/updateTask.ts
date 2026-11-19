@@ -3,6 +3,7 @@ import * as SQLite from 'expo-sqlite';
 import * as TaskManager from 'expo-task-manager';
 
 import { checkAndRecord } from '@/lib/updateNotice';
+import { refreshIosWidgets } from '@/widgets/ios';
 
 // The update check that runs with Spotter closed. Android picks the exact moment (it
 // batches background work to save battery); EVERY_MINUTES is the shortest gap.
@@ -15,6 +16,8 @@ TaskManager.defineTask(TASK, async () => {
   try {
     const db = await SQLite.openDatabaseAsync('spotter.db');
     await checkAndRecord(db, { notify: true });
+    // iPhone widgets can't refresh themselves; this is a chance to catch up a new day.
+    await refreshIosWidgets();
     return BackgroundTask.BackgroundTaskResult.Success;
   } catch {
     return BackgroundTask.BackgroundTaskResult.Failed;

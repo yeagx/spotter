@@ -206,7 +206,12 @@ export async function bestLiftModel(db: SQLiteDatabase, widgetId: number): Promi
   if (!profile) return { kind: 'setup' };
   const id = (await getMeta(db, bestKey(widgetId))) ?? (await topLiftId(db));
   if (!id) return { kind: 'empty', name: null, uri: link() };
+  return bestLiftOf(db, profile, id);
+}
 
+// One exercise's card. On iPhone the widget's own settings pick the lift, so the app
+// works this out for every lift on offer (bestLiftChoices) and the widget shows its pick.
+export async function bestLiftOf(db: SQLiteDatabase, profile: Profile, id: string): Promise<BestLiftModel> {
   const exercise = await db.getFirstAsync<{ name: string }>('SELECT name FROM exercise WHERE id = ?', id);
   const uri = link(`exercise/${id}`);
   const best = await bestLift(db, id);
