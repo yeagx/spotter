@@ -11,6 +11,7 @@ export { HEALTH_PROBLEMS } from './healthShared';
 export type { HealthProblem, HealthReading, HealthResult } from './healthShared';
 
 export const healthImportAvailable = true;
+export const healthSourceName = 'Health Connect';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // How far back to look for a weigh-in. Older than this isn't a check-in for today.

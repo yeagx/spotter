@@ -25,7 +25,7 @@ import { LIMITS, inLimits } from '@/lib/body';
 import { confirmDestructive, notify } from '@/lib/confirm';
 import { formatDay, localDate } from '@/lib/dates';
 import { haptic } from '@/lib/haptics';
-import { HEALTH_PROBLEMS, healthImportAvailable, readLatestBody } from '@/lib/healthImport';
+import { HEALTH_PROBLEMS, healthImportAvailable, healthSourceName, readLatestBody } from '@/lib/healthImport';
 import { POSE_NAMES } from '@/lib/labels';
 import { rise, stagger } from '@/lib/motion';
 import { pickProgressPhoto, removeAppPhoto, type PhotoSource } from '@/lib/photo';
@@ -259,14 +259,14 @@ export default function CheckinScreen() {
 
           <Text style={styles.meta}>
             {importedFrom
-              ? `Filled from Health Connect, weighed ${formatDay(importedFrom)}. Check it, then save.`
+              ? `Filled from ${healthSourceName}, weighed ${formatDay(importedFrom)}. Check it, then save.`
               : 'Only weight is needed. Copy the rest from a scan if you have one.'}
           </Text>
 
           {healthImportAvailable && !id && (
             <Animated.View entering={rise(90)}>
               <OutlineButton
-                label={importing ? 'Reading…' : 'Fill from Health Connect'}
+                label={importing ? 'Reading…' : `Fill from ${healthSourceName}`}
                 icon={<DownloadIcon color={colors.ink} />}
                 onPress={fillFromHealth}
               />

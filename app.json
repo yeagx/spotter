@@ -311,6 +311,14 @@
             }
           ]
         }
+      ],
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Spotter reads your latest weigh-in (weight, body fat and energy burned at rest) when you tap Fill from Apple Health on a check-in. Nothing is written back.",
+          "NSHealthUpdateUsageDescription": false,
+          "background": false
+        }
       ]
     ],
     "scheme": "spotter",
