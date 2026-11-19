@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { enterFocus, leaveFocus } from '@/lib/focus';
 import { haptic } from '@/lib/haptics';
-import { onLiveAction } from '@/lib/liveWorkout';
+import { clearLiveWorkout, onLiveAction } from '@/lib/liveWorkout';
 import { playRestDone } from '@/lib/restAlert';
 import { useProfile } from '@/state/profile';
 import {
@@ -35,6 +35,13 @@ export function LiveSessionHost() {
       .catch(() => {})
       .finally(() => setLoaded(true));
   }, [db]);
+
+  // A session that ended with the app closed can leave its lock-screen card behind (an
+  // iPhone Live Activity outlives the app). With no session open, take it down.
+  const hasLive = Boolean(live);
+  useEffect(() => {
+    if (loaded && !hasLive) clearLiveWorkout();
+  }, [loaded, hasLive]);
 
   // Focus is felt, not shown: a locking-in click as Do Not Disturb turns on with a
   // session, a soft click as it turns off at the end. Only when Spotter changed it.

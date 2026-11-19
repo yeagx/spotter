@@ -687,7 +687,15 @@ export default function WorkoutScreen() {
     if (state !== 'ready' || !blocks.length) return;
     const next = nextSetOf(blocks, index);
     if (!next) {
-      showLiveWorkout({ title: 'Every set ticked', body: 'Finish the session in Spotter.', canLog: false, resting: false });
+      showLiveWorkout({
+        title: 'Every set ticked',
+        body: 'Finish the session in Spotter.',
+        canLog: false,
+        resting: false,
+        set: 'Every set ticked',
+        exercise: 'Finish the session in Spotter.',
+        what: '',
+      });
       return;
     }
     const b = blocks[next.bi];
@@ -699,6 +707,11 @@ export default function WorkoutScreen() {
       body: restEndsAt !== null ? `Rest until ${clockTime(restEndsAt)} · then ${what}` : what,
       canLog: Boolean(lift),
       resting: restEndsAt !== null,
+      exercise: b.item.exercise.name,
+      set: `Set ${next.ri + 1} of ${b.rows.length}`,
+      what,
+      restFrom: restEndsAt !== null ? restEndsAt - restTotal : undefined,
+      restUntil: restEndsAt ?? undefined,
     });
   }, [state, blocks, index, restEndsAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
