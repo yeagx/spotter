@@ -1,21 +1,14 @@
 import { useEffect, useState } from 'react';
-import { AppState, Linking, StyleSheet, Text, View } from 'react-native';
+import { AppState, StyleSheet, Text, View } from 'react-native';
 
 import { showDialog } from '@/components/DialogHost';
 import { Segmented } from '@/components/Segmented';
 import type { Profile } from '@/db/profile';
-import {
-  dndSupported,
-  hasDndAccess,
-  hasMediaAccess,
-  mediaSupported,
-  openDndSettings,
-  openMediaAccessSettings,
-} from '@/lib/media';
+import { dndSupported, hasDndAccess, mediaSupported, openDndSettings } from '@/lib/media';
 import { colors, radius, size, space, type } from '@/theme';
 
 // "During a session" in Profile: music controls on the workout screen, and Focus mode.
-// Both need a one-time switch in Android's settings; this says why and takes you there.
+// Focus needs Do Not Disturb access once; this says why and takes you there.
 // Absent on builds without the native module (web, an older APK).
 
 type Props = {
@@ -28,39 +21,20 @@ const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
   { value: 'off', label: 'Off' },
 ];
 
-// Sideloaded apps (an APK from GitHub) hit this on Android 13+ the first time.
-const RESTRICTED =
-  'If Android says “Restricted setting”: open App info, tap ⋮ at the top, choose Allow restricted settings, then come back and try again.';
-
 export function SessionSettings({ profile, update }: Props) {
-  const [music, setMusic] = useState(hasMediaAccess);
+  const [music, setMusic] = useState(profile.musicControls);
   const [dnd, setDnd] = useState(hasDndAccess);
   const [focus, setFocus] = useState(profile.focusMode);
 
-  // Access is switched on in Settings, so check again on coming back.
+  // Do Not Disturb access is granted in Settings, so check again on coming back.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
-      if (s !== 'active') return;
-      setMusic(hasMediaAccess());
-      setDnd(hasDndAccess());
+      if (s === 'active') setDnd(hasDndAccess());
     });
     return () => sub.remove();
   }, []);
 
   if (!mediaSupported && !dndSupported) return null;
-
-  const askMusic = async () => {
-    const i = await showDialog({
-      title: 'Music in Spotter',
-      message: `To show what’s playing in Spotify, YouTube or any player, and control it from the workout, turn on Notification access for Spotter. It’s only used for music; Spotter never reads your notifications.\n\n${RESTRICTED}`,
-      actions: [
-        { label: 'App info', kind: 'neutral' },
-        { label: 'Open settings', kind: 'primary' },
-      ],
-    });
-    if (i === 0) Linking.openSettings();
-    if (i === 1) openMediaAccessSettings();
-  };
 
   const setFocusMode = async (on: boolean) => {
     setFocus(on);
@@ -83,22 +57,22 @@ export function SessionSettings({ profile, update }: Props) {
       <Text style={styles.title}>During a session</Text>
 
       {mediaSupported && (
-        <View style={styles.row}>
+        <View style={styles.block}>
           <View style={styles.rowText}>
             <Text style={styles.rowLabel}>Music</Text>
             <Text style={styles.hint}>
-              {music
-                ? 'What’s playing shows on the workout screen, with its controls.'
-                : 'Show and control your music without leaving the workout.'}
+              Play, pause and skip whatever’s playing (Spotify, YouTube, any player) from the workout screen, once
+              music starts.
             </Text>
           </View>
-          {music ? (
-            <Text style={styles.status}>On</Text>
-          ) : (
-            <Text accessibilityRole="button" onPress={askMusic} style={[styles.status, styles.link]}>
-              Allow
-            </Text>
-          )}
+          <Segmented
+            options={ON_OFF}
+            value={music ? 'on' : 'off'}
+            onChange={(v) => {
+              setMusic(v === 'on');
+              update({ musicControls: v === 'on' });
+            }}
+          />
         </View>
       )}
 
@@ -127,12 +101,10 @@ export function SessionSettings({ profile, update }: Props) {
 const styles = StyleSheet.create({
   card: { borderRadius: radius.md, backgroundColor: colors.surface, padding: space[4], gap: space[4] },
   title: { ...type.bodyStrong, color: colors.ink },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[3] },
   block: { gap: space[2] },
   rowText: { flexShrink: 1, gap: space[1] },
   rowLabel: { ...type.body, color: colors.ink },
   hint: { ...type.caption, color: colors.inkMuted },
-  status: { ...type.captionStrong, color: colors.inkMuted, minHeight: size.tapTarget, textAlignVertical: 'center' },
   link: { color: colors.ink, textDecorationLine: 'underline' },
   tap: { minHeight: size.tapTarget, textAlignVertical: 'center' },
 });

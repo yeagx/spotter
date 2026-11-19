@@ -1,48 +1,24 @@
 import { requireOptionalNativeModule } from 'expo';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 
-// Bridge to modules/spotter-media (Android): what another app is playing, its controls,
-// and Do Not Disturb for Focus mode. On web, iOS, Expo Go or an APK built before the
-// module existed, it's simply absent and everything here reports "not available".
+// Bridge to modules/spotter-media (Android): music controls sent as media-button presses
+// to whichever app is playing, whether music is playing at all, and Do Not Disturb for
+// Focus mode. None of it needs special access. On web, iOS, Expo Go or an APK built
+// before the module existed, it's absent and everything here reports "not available".
 
-export type NowPlaying = {
-  packageName: string;
-  appName: string; // "Spotify", or '' if Android won't say
-  title: string;
-  artist: string;
-  artwork: string | null; // small JPEG data URI
-  durationMs: number; // 0 when unknown (a live stream)
-  positionMs: number; // as of positionAt
-  positionAt: number; // epoch ms
-  speed: number;
-  playing: boolean;
-  canSeek: boolean;
-  canNext: boolean;
-  canPrevious: boolean;
-};
-
-export type MediaAction = 'play' | 'pause' | 'toggle' | 'next' | 'previous' | 'seek';
-
-type ChangeEvent = { nowPlaying: NowPlaying | null; access: boolean };
+export type MediaAction = 'play' | 'pause' | 'toggle' | 'next' | 'previous';
 
 type Native = {
-  hasMediaAccess(): boolean;
-  openMediaAccessSettings(): boolean;
-  getNowPlaying(): NowPlaying | null;
-  control(action: MediaAction, value: number | null): boolean;
-  openPlayer(): boolean;
+  isMusicActive(): boolean;
+  sendMediaKey(action: MediaAction): boolean;
   hasDndAccess(): boolean;
   openDndSettings(): boolean;
   getInterruptionFilter(): number;
   setInterruptionFilter(filter: number): boolean;
-  addListener(event: 'onChange', listener: (e: ChangeEvent) => void): { remove(): void };
 };
 
 const native = Platform.OS === 'android' ? requireOptionalNativeModule<Native>('SpotterMedia') : null;
-
-// This build can show and control other apps' music.
-export const mediaSupported = native != null;
 
 const safe = <T,>(fn: () => T, fallback: T): T => {
   try {
@@ -52,40 +28,58 @@ const safe = <T,>(fn: () => T, fallback: T): T => {
   }
 };
 
-export const hasMediaAccess = () => safe(() => native?.hasMediaAccess() ?? false, false);
-export const openMediaAccessSettings = () => safe(() => native?.openMediaAccessSettings() ?? false, false);
-export const mediaControl = (action: MediaAction, value: number | null = null) =>
-  safe(() => native?.control(action, value) ?? false, false);
-export const openPlayer = () => safe(() => native?.openPlayer() ?? false, false);
+// ---------- Music ----------
 
-// What's playing right now, kept up to date while the calling screen is mounted.
-// `access` is false until Notification access is on.
-export function useNowPlaying(): { nowPlaying: NowPlaying | null; access: boolean } {
-  const [state, setState] = useState<ChangeEvent>(() => ({
-    nowPlaying: safe(() => native?.getNowPlaying() ?? null, null),
-    access: hasMediaAccess(),
-  }));
+// This build can control other apps' music.
+export const mediaSupported = native != null;
+
+export const isMusicActive = () => safe(() => native?.isMusicActive() ?? false, false);
+export const mediaControl = (action: MediaAction) => safe(() => native?.sendMediaKey(action) ?? false, false);
+
+// Music has played at some point since Spotter opened, so pausing it keeps the controls
+// up (there'd be no way to press play again otherwise).
+let heard = false;
+
+const POLL_MS = 1000;
+// After a press, the player takes a moment to start or stop; trust the press until then.
+const SETTLE_MS = 1500;
+
+// Whether music is playing, checked every second while the calling screen is mounted.
+// `heard` is true once anything has played since Spotter opened.
+export function useMusic(): { playing: boolean; heard: boolean; press: (action: MediaAction) => void } {
+  const [playing, setPlaying] = useState(isMusicActive);
+  const [wasHeard, setWasHeard] = useState(heard || playing);
+  const pressedAt = useRef(0);
 
   useEffect(() => {
     if (!native) return;
-    const sub = safe(() => native.addListener('onChange', setState), null);
-    // Access can be switched on in Settings while Spotter waits in the background.
-    const app = AppState.addEventListener('change', (s) => {
-      if (s === 'active') setState({ nowPlaying: safe(() => native.getNowPlaying(), null), access: hasMediaAccess() });
-    });
+    const check = () => {
+      if (Date.now() - pressedAt.current < SETTLE_MS) return;
+      const now = isMusicActive();
+      setPlaying(now);
+      if (now && !heard) {
+        heard = true;
+        setWasHeard(true);
+      }
+    };
+    check();
+    const t = setInterval(check, POLL_MS);
+    const app = AppState.addEventListener('change', (s) => s === 'active' && check());
     return () => {
-      sub?.remove();
+      clearInterval(t);
       app.remove();
     };
   }, []);
 
-  return state;
-}
+  const press = (action: MediaAction) => {
+    if (!mediaControl(action)) return;
+    pressedAt.current = Date.now();
+    if (action === 'toggle') setPlaying((p) => !p);
+    if (action === 'play' || action === 'next' || action === 'previous') setPlaying(true);
+    if (action === 'pause') setPlaying(false);
+  };
 
-// Where the track is now, running on from the last report while it plays.
-export function positionNow(p: NowPlaying, now = Date.now()): number {
-  const pos = p.playing ? p.positionMs + (now - p.positionAt) * p.speed : p.positionMs;
-  return p.durationMs > 0 ? Math.min(Math.max(0, pos), p.durationMs) : Math.max(0, pos);
+  return { playing, heard: wasHeard, press };
 }
 
 // ---------- Focus mode (Do Not Disturb) ----------

@@ -12,7 +12,8 @@ import { onDataChanged } from '@/db/changes';
 
 import { BestLiftConfig } from './BestLiftConfig';
 import { clearBestLiftChoice } from './data';
-import { WIDGET_NAMES, renderWidget, widgetDb } from './render';
+import { WIDGET_NAMES, renderWidget, todayPages, widgetDb } from './render';
+import { TODAY_PAGE } from './TodayWidget';
 
 // Android home screen widgets. Loaded from the entry file (index.ts), only in builds
 // that include the native module.
@@ -44,7 +45,7 @@ const redraw = (info: WidgetInfo) =>
 
 // Android asks for a widget to be drawn when it's added, resized, or on its own
 // schedule (updatePeriodMillis in app.json, which is how Today rolls over after midnight).
-registerWidgetTaskHandler(async ({ widgetInfo, widgetAction, renderWidget: draw }) => {
+registerWidgetTaskHandler(async ({ widgetInfo, widgetAction, clickAction, clickActionData, renderWidget: draw }) => {
   switch (widgetAction) {
     case 'WIDGET_ADDED': {
       const info = await fresh(widgetInfo);
@@ -66,8 +67,16 @@ registerWidgetTaskHandler(async ({ widgetInfo, widgetAction, renderWidget: draw 
         await clearBestLiftChoice(await widgetDb(), widgetInfo.widgetId).catch(() => {});
       }
       break;
+    case 'WIDGET_CLICK':
+      // Today's "1 / 2 ›": draw the page it asked for. Other taps open deep links
+      // (OPEN_URI) natively and never get here.
+      if (clickAction === TODAY_PAGE) {
+        todayPages.set(widgetInfo.widgetId, Number(clickActionData?.page) || 0);
+        const info = await fresh(widgetInfo);
+        draw(await renderWidget(info.widgetName, info));
+      }
+      break;
     default:
-      // Taps open deep links (OPEN_URI) natively; nothing to handle here.
       break;
   }
 });

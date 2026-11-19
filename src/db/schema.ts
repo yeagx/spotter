@@ -205,4 +205,8 @@ export const MIGRATIONS: string[] = [
   `
   ALTER TABLE profile ADD COLUMN focus_mode INTEGER NOT NULL DEFAULT 0 CHECK (focus_mode IN (0, 1));
   `,
+  // 9: music controls on the workout screen. On unless turned off.
+  `
+  ALTER TABLE profile ADD COLUMN music_controls INTEGER NOT NULL DEFAULT 1 CHECK (music_controls IN (0, 1));
+  `,
 ];

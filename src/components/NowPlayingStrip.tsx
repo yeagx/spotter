@@ -1,24 +1,39 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Image, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  cancelAnimation,
+  interpolate,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+  type SharedValue,
+} from 'react-native-reanimated';
 
-import { NextIcon, PauseIcon, PlayIcon, PreviousIcon } from '@/components/Icons';
+import { ChevronDownIcon, NextIcon, PauseIcon, PlayIcon, PreviousIcon } from '@/components/Icons';
 import { PressableScale } from '@/components/PressableScale';
-import { formatClock } from '@/lib/dates';
+import { SlantBar } from '@/components/Slant';
 import { haptic } from '@/lib/haptics';
-import { mediaControl, openPlayer, positionNow, useNowPlaying, type MediaAction } from '@/lib/media';
-import { rise, settle } from '@/lib/motion';
-import { colors, radius, size, space, type } from '@/theme';
+import { mediaSupported, useMusic, type MediaAction } from '@/lib/media';
+import { easeOut, rise } from '@/lib/motion';
+import { useProfile } from '@/state/profile';
+import { colors, motion, radius, size, space, type } from '@/theme';
 
-// Whatever's playing in another app (Spotify, YouTube Music, YouTube…), as a slim strip
-// above the workout's button: cover, title, play/pause. Tap it for the track's progress,
-// previous / next, and a way into the player. Shows only once Notification access is on
-// and something is playing; hides while the keyboard is up so it never crowds a set row.
+// Music controls above the workout's button: whatever app is playing (Spotify, YouTube,
+// any player) takes play/pause, previous and next, like a headset's buttons. Slim by
+// default; tap it to open the full controls. It appears once music has played since
+// Spotter opened, can be turned off in Profile, and hides while the keyboard is up so it
+// never crowds a set row.
 export function NowPlayingStrip() {
-  const { nowPlaying: np, access } = useNowPlaying();
+  const { profile } = useProfile();
+  const { playing, heard, press } = useMusic();
   const [open, setOpen] = useState(false);
   const [keyboard, setKeyboard] = useState(false);
-  const [now, setNow] = useState(Date.now());
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboard(true));
@@ -29,31 +44,42 @@ export function NowPlayingStrip() {
     };
   }, []);
 
-  // The progress bar only runs while it's on screen and the track is moving.
-  const ticking = open && Boolean(np?.playing) && (np?.durationMs ?? 0) > 0;
+  // 0 closed, 1 open. The panel's height follows it, so the footer grows and shrinks in
+  // one slow ease-out instead of jumping.
+  const progress = useSharedValue(0);
+  const [panelH, setPanelH] = useState(0);
   useEffect(() => {
-    if (!ticking) return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [ticking]);
+    progress.value = reduceMotion
+      ? open
+        ? 1
+        : 0
+      : withTiming(open ? 1 : 0, { duration: motion.expandMs, easing: easeOut });
+  }, [open, progress, reduceMotion]);
 
-  if (!access || !np || keyboard) return null;
+  const panel = useAnimatedStyle(() => ({
+    height: panelH * progress.value,
+    opacity: interpolate(progress.value, [0, 0.4, 1], [0, 0.2, 1]),
+  }));
+  const small = useAnimatedStyle(() => ({
+    opacity: 1 - progress.value,
+    transform: [{ scale: 1 - 0.2 * progress.value }],
+  }));
+  const chevron = useAnimatedStyle(() => ({ transform: [{ rotate: `${180 * progress.value}deg` }] }));
+
+  if (!mediaSupported || !profile?.musicControls || !heard || keyboard) return null;
 
   const act = (action: MediaAction) => {
     haptic.select();
-    mediaControl(action);
+    press(action);
   };
-  const position = positionNow(np, now);
-  const progress = np.durationMs > 0 ? position / np.durationMs : 0;
-  const sub = [np.artist, np.appName].filter(Boolean).join(' · ');
 
   return (
-    <Animated.View entering={rise()} layout={settle} style={styles.card}>
+    <Animated.View entering={rise()} style={styles.card}>
       <View style={styles.row}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${np.title}${np.artist ? `, ${np.artist}` : ''}`}
-          accessibilityHint={open ? 'Hides the music controls' : 'Shows more music controls'}
+          accessibilityLabel={`Music, ${playing ? 'playing' : 'paused'}`}
+          accessibilityHint={open ? 'Hides the music controls' : 'Shows previous and next'}
           accessibilityState={{ expanded: open }}
           onPress={() => {
             haptic.select();
@@ -61,59 +87,79 @@ export function NowPlayingStrip() {
           }}
           style={styles.info}
         >
-          {np.artwork ? (
-            <Image source={{ uri: np.artwork }} style={styles.art} accessibilityIgnoresInvertColors />
-          ) : (
-            <View style={[styles.art, styles.artEmpty]} />
-          )}
+          <Equalizer playing={playing} />
           <View style={styles.text}>
-            <Text style={styles.title} numberOfLines={1}>
-              {np.title}
-            </Text>
-            {sub !== '' && (
-              <Text style={styles.sub} numberOfLines={1}>
-                {sub}
-              </Text>
-            )}
+            <Text style={styles.title}>Music</Text>
+            <Text style={styles.sub}>{playing ? 'Playing' : 'Paused'}</Text>
           </View>
+          <Animated.View style={chevron}>
+            <ChevronDownIcon color={colors.inkMuted} size={size.iconSm} />
+          </Animated.View>
         </Pressable>
-        {!open && <PlayPause playing={np.playing} onPress={() => act('toggle')} />}
+        <Animated.View style={small} pointerEvents={open ? 'none' : 'auto'}>
+          <PlayPause playing={playing} onPress={() => act('toggle')} />
+        </Animated.View>
       </View>
 
-      {open && (
-        <Animated.View entering={FadeIn.duration(320)} exiting={FadeOut.duration(200)} style={styles.more}>
-          {np.durationMs > 0 && (
-            <View style={styles.progress}>
-              <View style={styles.track}>
-                <View style={[styles.fill, { width: `${Math.round(progress * 1000) / 10}%` }]} />
-              </View>
-              <View style={styles.times}>
-                <Text style={styles.time}>{formatClock(position)}</Text>
-                <Text style={styles.time}>{formatClock(np.durationMs)}</Text>
-              </View>
-            </View>
-          )}
+      {/* Laid out once at full size (absolute), measured, then revealed by height. */}
+      <Animated.View style={[styles.panelClip, panel]} pointerEvents={open ? 'auto' : 'none'}>
+        <View onLayout={(e) => setPanelH(e.nativeEvent.layout.height)} style={styles.panel}>
           <View style={styles.controls}>
-            <ControlButton label="Previous" disabled={!np.canPrevious} onPress={() => act('previous')}>
+            <ControlButton label="Previous" onPress={() => act('previous')}>
               <PreviousIcon color={colors.ink} size={size.icon} />
             </ControlButton>
-            <PlayPause playing={np.playing} onPress={() => act('toggle')} big />
-            <ControlButton label="Next" disabled={!np.canNext} onPress={() => act('next')}>
+            <PlayPause playing={playing} onPress={() => act('toggle')} big />
+            <ControlButton label="Next" onPress={() => act('next')}>
               <NextIcon color={colors.ink} size={size.icon} />
             </ControlButton>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => {
-              haptic.select();
-              openPlayer();
-            }}
-            style={styles.openApp}
-          >
-            <Text style={styles.openAppLabel}>Open {np.appName || 'player'}</Text>
-          </Pressable>
-        </Animated.View>
-      )}
+        </View>
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+// Three slanted bars, the logo's cut, that rise and fall while music plays and rest
+// low when it's paused. Still with reduce-motion on.
+const EQ_MS = [520, 680, 440];
+
+function Equalizer({ playing }: { playing: boolean }) {
+  const reduceMotion = useReducedMotion();
+  const a = useSharedValue(0.35);
+  const b = useSharedValue(0.35);
+  const c = useSharedValue(0.35);
+  const bars = [a, b, c];
+
+  useEffect(() => {
+    bars.forEach((v, i) => {
+      cancelAnimation(v);
+      if (!playing || reduceMotion) {
+        v.value = withTiming(playing ? 0.7 : 0.35, { duration: motion.selectMs });
+        return;
+      }
+      const ms = EQ_MS[i];
+      const ease = Easing.inOut(Easing.quad);
+      v.value = withDelay(
+        i * 90,
+        withRepeat(withSequence(withTiming(1, { duration: ms, easing: ease }), withTiming(0.3, { duration: ms, easing: ease })), -1),
+      );
+    });
+  }, [playing, reduceMotion]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <View style={styles.eq} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {bars.map((v, i) => (
+        <EqBar key={i} value={v} color={playing ? colors.ink : colors.inkFaint} />
+      ))}
+    </View>
+  );
+}
+
+function EqBar({ value, color }: { value: SharedValue<number>; color: string }) {
+  const style = useAnimatedStyle(() => ({ transform: [{ scaleY: value.value }] }));
+  return (
+    <Animated.View style={[styles.eqBar, style]}>
+      <SlantBar width={size.cueMarkWidth} height={size.cueMarkHeight * 1.5} color={color} />
     </Animated.View>
   );
 }
@@ -127,36 +173,14 @@ function PlayPause({ playing, onPress, big }: { playing: boolean; onPress: () =>
       haptic={null}
       style={[styles.button, big && styles.buttonBig]}
     >
-      {playing ? (
-        <PauseIcon color={colors.ink} size={size.icon} />
-      ) : (
-        <PlayIcon color={colors.ink} size={size.icon} />
-      )}
+      {playing ? <PauseIcon color={colors.ink} size={size.icon} /> : <PlayIcon color={colors.ink} size={size.icon} />}
     </PressableScale>
   );
 }
 
-function ControlButton({
-  label,
-  disabled,
-  onPress,
-  children,
-}: {
-  label: string;
-  disabled: boolean;
-  onPress: () => void;
-  children: ReactNode;
-}) {
+function ControlButton({ label, onPress, children }: { label: string; onPress: () => void; children: ReactNode }) {
   return (
-    <PressableScale
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      haptic={null}
-      style={[styles.button, disabled && styles.disabled]}
-    >
+    <PressableScale accessibilityRole="button" accessibilityLabel={label} onPress={onPress} haptic={null} style={styles.button}>
       {children}
     </PressableScale>
   );
@@ -166,15 +190,22 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: radius.md,
     backgroundColor: colors.surface,
-    paddingVertical: space[2],
-    paddingLeft: space[2],
+    paddingVertical: space[1],
+    paddingLeft: space[3],
     paddingRight: space[1],
     overflow: 'hidden',
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
   info: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[3], minHeight: size.tapTarget },
-  art: { width: size.tapTarget, height: size.tapTarget, borderRadius: radius.sm },
-  artEmpty: { backgroundColor: colors.surfaceRaised },
+  eq: {
+    width: size.tapTarget * 0.6,
+    height: size.cueMarkHeight * 1.5,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: space[1] / 2,
+  },
+  // Grows from its foot, like a level meter.
+  eqBar: { transformOrigin: 'bottom' },
   text: { flex: 1 },
   title: { ...type.captionStrong, color: colors.ink },
   sub: { ...type.caption, color: colors.inkMuted },
@@ -185,15 +216,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonBig: { width: size.buttonPrimary, height: size.buttonPrimary, borderRadius: size.buttonPrimary / 2, backgroundColor: colors.surfaceRaised },
-  disabled: { opacity: 0.35 },
-  more: { gap: space[3], paddingTop: space[3], paddingRight: space[1] },
-  progress: { gap: space[1] },
-  track: { height: size.divider * 3, borderRadius: radius.sm, backgroundColor: colors.surfaceRaised, overflow: 'hidden' },
-  fill: { height: '100%', backgroundColor: colors.ink },
-  times: { flexDirection: 'row', justifyContent: 'space-between' },
-  time: { ...type.numeralCaption, color: colors.inkMuted },
-  controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[6] },
-  openApp: { minHeight: size.tapTarget, alignItems: 'center', justifyContent: 'center' },
-  openAppLabel: { ...type.captionStrong, color: colors.ink },
+  buttonBig: {
+    width: size.buttonPrimary,
+    height: size.buttonPrimary,
+    borderRadius: size.buttonPrimary / 2,
+    backgroundColor: colors.surfaceRaised,
+  },
+  panelClip: { overflow: 'hidden' },
+  panel: { position: 'absolute', top: 0, left: 0, right: 0, paddingTop: space[2], paddingBottom: space[2] },
+  controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[8] },
 });

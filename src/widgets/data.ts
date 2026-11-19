@@ -20,7 +20,7 @@ import { caughtUpToday, stillOpenDay } from '@/lib/catchUp';
 import { formatDay, monthKey, monthName, startOfDay, startOfWeek } from '@/lib/dates';
 import { dayTitle } from '@/lib/scheme';
 import { formatNumber, formatWeight, kgToUnit } from '@/lib/units';
-import { WEEK, today, weekdayName } from '@/lib/week';
+import { WEEK, today, weekdayName, weekdayShort } from '@/lib/week';
 
 // What each widget shows, read from the same SQLite data as the app's screens and
 // built from the same queries, so a widget never disagrees with the screen it opens.
@@ -41,6 +41,7 @@ export type TodayModel =
   | {
       kind: 'train';
       label: string;
+      labelShort: string; // "THU · DAY 4", when the full one won't fit beside the week
       title: string;
       exercises: { name: string; last: string | null }[];
       sets: number;
@@ -48,7 +49,7 @@ export type TodayModel =
       state: 'start' | 'resume' | 'done';
       uri: string;
     }
-  | { kind: 'rest'; label: string; next: string | null; week: WeekBar[] };
+  | { kind: 'rest'; label: string; labelShort: string; next: string | null; week: WeekBar[] };
 
 export async function todayModel(db: SQLiteDatabase): Promise<TodayModel> {
   const profile = await getProfile(db);
@@ -83,6 +84,7 @@ export async function todayModel(db: SQLiteDatabase): Promise<TodayModel> {
     return {
       kind: 'rest',
       label: `${weekdayName(weekday)} · Rest`,
+      labelShort: `${weekdayShort(weekday)} · Rest`,
       next: next?.weekday ? `Next: ${weekdayName(next.weekday)} · ${dayTitle(next)}` : null,
       week: bars,
     };
@@ -97,6 +99,7 @@ export async function todayModel(db: SQLiteDatabase): Promise<TodayModel> {
   return {
     kind: 'train',
     label: carried?.weekday ? `From ${weekdayName(carried.weekday)} · Day ${n}` : `${weekdayName(weekday)} · Day ${n}`,
+    labelShort: carried?.weekday ? `From ${weekdayShort(carried.weekday)} · Day ${n}` : `${weekdayShort(weekday)} · Day ${n}`,
     title: dayTitle(day),
     exercises: day.exercises.map((e) => ({
       name: e.exercise.name,

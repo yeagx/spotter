@@ -15,6 +15,10 @@ import { SetUp, boxOf } from './ui';
 // Names match the "widgets" list in app.json.
 export const WIDGET_NAMES = ['Today', 'Month', 'BestLift', 'Body', 'Start', 'Me', 'MeSmall'] as const;
 
+// The page each Today widget is showing, by widget id. Kept in memory only: a redraw after
+// the app's been closed for good starts again at the first page, which is the right place.
+export const todayPages = new Map<number, number>();
+
 let opened: Promise<SQLiteDatabase> | null = null;
 
 // The app's own database file. Widgets render in the background, sometimes with the app
@@ -41,7 +45,7 @@ export async function renderWidget(name: string, info: WidgetInfo) {
     if (!(await schemaReady(db))) return <SetUp b={b} />;
     switch (name) {
       case 'Today':
-        return <TodayWidget m={await todayModel(db)} b={b} />;
+        return <TodayWidget m={await todayModel(db)} b={b} page={todayPages.get(info.widgetId) ?? 0} />;
       case 'Month':
         return <MonthWidget m={await monthModel(db)} b={b} />;
       case 'BestLift':

@@ -3,6 +3,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
 
 import { enterFocus, leaveFocus } from '@/lib/focus';
+import { haptic } from '@/lib/haptics';
 import { onLiveAction } from '@/lib/liveWorkout';
 import { playRestDone } from '@/lib/restAlert';
 import { useProfile } from '@/state/profile';
@@ -35,10 +36,21 @@ export function LiveSessionHost() {
       .finally(() => setLoaded(true));
   }, [db]);
 
+  // Focus is felt, not shown: a locking-in click as Do Not Disturb turns on with a
+  // session, a soft click as it turns off at the end. Only when Spotter changed it.
   const focusOn = Boolean(profile?.focusMode && live);
+  const sessionId = live?.id ?? null;
   useEffect(() => {
     if (!loaded || profile === undefined) return;
-    (focusOn ? enterFocus(db) : leaveFocus(db)).catch(() => {});
+    if (!focusOn) {
+      leaveFocus(db)
+        .then((off) => off && haptic.focusOff())
+        .catch(() => {});
+      return;
+    }
+    enterFocus(db)
+      .then((r) => r === 'on' && haptic.focusOn())
+      .catch(() => {});
   }, [db, loaded, profile, focusOn]);
 
   const restEndsAt = live?.restEndsAt ?? null;
@@ -53,7 +65,6 @@ export function LiveSessionHost() {
     return () => clearTimeout(t);
   }, [workoutOpen, restEndsAt, alertMode]);
 
-  const sessionId = live?.id ?? null;
   useEffect(() => {
     if (workoutOpen || !sessionId) return;
     return onLiveAction((action) => {

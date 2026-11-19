@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -15,6 +15,7 @@ import { StackScreen } from '@/components/StackScreen';
 import { TargetsLine } from '@/components/TargetsLine';
 import { TextField } from '@/components/TextField';
 import { createCustomExercise, listExercises } from '@/db/exercises';
+import { ANIMATED_ROWS, useSettledList } from '@/hooks/useSettledList';
 import { MUSCLES, TRACKINGS, type Exercise, type Muscle, type Tracking } from '@/db/types';
 import { notify } from '@/lib/confirm';
 import { haptic } from '@/lib/haptics';
@@ -63,13 +64,16 @@ export default function LibraryScreen() {
     return all.filter((e) => (!muscle || e.muscle === muscle) && normalize(searchText(e)).includes(q));
   }, [all, query, muscle]);
 
-  if (!request) return null;
-  const existing = new Set(request.existingIds);
-
-  const toggle = (id: string) => {
+  const limit = useSettledList(all.length > 0);
+  const pickedSet = useMemo(() => new Set(picked), [picked]);
+  const existing = useMemo(() => new Set(request?.existingIds ?? []), [request]);
+  // Stable, so a tap re-renders the one row it changed, not all of them.
+  const toggle = useCallback((id: string) => {
     haptic.select();
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
-  };
+  }, []);
+
+  if (!request) return null;
 
   const onCreated = (exercise: Exercise) => {
     setAll((list) => [...list, exercise].sort(byMuscleThenName));
@@ -137,36 +141,17 @@ export default function LibraryScreen() {
         </Animated.View>
 
         <FadeScrollView>
-          {shown.map((e, i) => {
-            const already = existing.has(e.id);
-            const on = picked.includes(e.id);
-            return (
-              <Animated.View
-                key={e.id}
-                entering={firstPaint.current ? rise(160 + Math.min(i, 10) * 40) : undefined}
-              >
-                <Pressable
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: on, disabled: already }}
-                  disabled={already}
-                  onPress={() => toggle(e.id)}
-                  style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-                >
-                  <ExerciseThumb media={e.media} />
-                  <View style={styles.rowText}>
-                    <Text style={[styles.rowName, already && styles.muted]}>{e.name}</Text>
-                    <TargetsLine exercise={e} />
-                    <Text style={styles.meta}>
-                      {already ? `Already in ${request.dayLabel}` : equipmentLabel(e)}
-                    </Text>
-                  </View>
-                  <View style={[styles.box, on && styles.boxOn]}>
-                    {on && <DrawnCheck />}
-                  </View>
-                </Pressable>
-              </Animated.View>
-            );
-          })}
+          {shown.slice(0, limit).map((e, i) => (
+            <LibraryRow
+              key={e.id}
+              exercise={e}
+              on={pickedSet.has(e.id)}
+              already={existing.has(e.id)}
+              dayLabel={request.dayLabel}
+              delay={firstPaint.current && i < ANIMATED_ROWS ? 160 + i * 40 : null}
+              onToggle={toggle}
+            />
+          ))}
 
           {all.length > 0 && shown.length === 0 && (
             <Text style={[styles.meta, styles.empty]}>Nothing matches “{query.trim()}”.</Text>
@@ -184,6 +169,39 @@ export default function LibraryScreen() {
     </StackScreen>
   );
 }
+
+type RowProps = {
+  exercise: Exercise;
+  on: boolean;
+  already: boolean;
+  dayLabel: string;
+  delay: number | null; // rise-in delay on first paint; null for no entrance
+  onToggle: (id: string) => void;
+};
+
+// One exercise in the picker. Memoized: picking one re-renders that row only, which is
+// what keeps the tick under your thumb instead of a beat behind it.
+const LibraryRow = memo(function LibraryRow({ exercise: e, on, already, dayLabel, delay, onToggle }: RowProps) {
+  return (
+    <Animated.View entering={delay !== null ? rise(delay) : undefined}>
+      <Pressable
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: on, disabled: already }}
+        disabled={already}
+        onPress={() => onToggle(e.id)}
+        style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      >
+        <ExerciseThumb media={e.media} />
+        <View style={styles.rowText}>
+          <Text style={[styles.rowName, already && styles.muted]}>{e.name}</Text>
+          <TargetsLine exercise={e} />
+          <Text style={styles.meta}>{already ? `Already in ${dayLabel}` : equipmentLabel(e)}</Text>
+        </View>
+        <View style={[styles.box, on && styles.boxOn]}>{on && <DrawnCheck />}</View>
+      </Pressable>
+    </Animated.View>
+  );
+});
 
 // "Can't find it?" opens a small form: a name, one muscle, what a set records, and a
 // photo or clip of your own if you want a demo for it.

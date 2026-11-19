@@ -12,6 +12,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
 import { SlantBar } from '@/components/Slant';
 import { getSplit, type Split, type SplitDay } from '@/db/plan';
+import type { Weekday } from '@/db/types';
 import {
   finishedSessionsBetween,
   getOpenSession,
@@ -41,6 +42,7 @@ type TodayData = {
   lastKg: Map<string, number>;
   recapMonth: string | null;
   sharable: string | null; // the session finished most recently today, if any
+  cards: Map<Weekday, string>; // this week's last finished session on each day, for its card
 };
 
 export default function TodayScreen() {
@@ -80,6 +82,9 @@ export default function TodayScreen() {
           lastKg,
           recapMonth,
           sharable: week.filter((s) => s.startedAt >= dayStart).pop()?.id ?? null,
+          // By the day it was done, not the plan day: a day caught up on Saturday is
+          // Saturday's card. `week` is oldest first, so the last one on a day wins.
+          cards: new Map(week.map((s) => [weekdayOf(s.startedAt), s.id])),
         });
       })();
       return () => {
@@ -199,7 +204,7 @@ export default function TodayScreen() {
             </Text>
           )}
         </Animated.View>
-        <WeekStrip split={split} doneThisWeek={data.doneThisWeek} />
+        <WeekStrip split={split} doneThisWeek={data.doneThisWeek} cards={data.cards} />
         {open ? (
           <ResumeButton session={open} />
         ) : (
@@ -276,7 +281,7 @@ function DayBody({ label, lead, day, note, split, data, startLabel, onStart, uni
           {note ? ` · ${note}` : ''}
         </Text>
       </Animated.View>
-      <WeekStrip split={split} doneThisWeek={data.doneThisWeek} />
+      <WeekStrip split={split} doneThisWeek={data.doneThisWeek} cards={data.cards} />
       {data.open ? (
         <ResumeButton session={data.open} />
       ) : day.exercises.length === 0 ? (
@@ -339,32 +344,64 @@ function nextTrainingDay(days: SplitDay[]): SplitDay | null {
 }
 
 // Seven slanted bars: today red, days already trained this week white,
-// other training days grey, rest days barely there.
-function WeekStrip({ split, doneThisWeek }: { split: Split; doneThisWeek: Set<string> }) {
+// other training days grey, rest days barely there. A day trained this week opens its
+// session card, to save or share it later in the week.
+function WeekStrip({
+  split,
+  doneThisWeek,
+  cards,
+}: {
+  split: Split;
+  doneThisWeek: Set<string>;
+  cards: Map<Weekday, string>;
+}) {
   const t = today();
   return (
-    <View style={styles.week} accessibilityLabel="This week">
-      {WEEK.map((w, i) => {
-        const day = split.days.find((d) => d.weekday === w);
-        const color =
-          w === t && day
-            ? colors.spotterRed
-            : day && doneThisWeek.has(day.id)
-              ? colors.ink
-              : day
-                ? colors.inkMuted
-                : colors.surfaceRaised;
-        return (
-          <Animated.View key={w} entering={rise(stagger(i, 160))} style={styles.weekDay}>
-            <SlantBar width={size.weekBar} height={size.stripBar} color={color} />
-            <Text style={[styles.weekLetter, w === t && styles.weekLetterToday]}>
-              {weekdayLetter(w)}
-            </Text>
-          </Animated.View>
-        );
-      })}
+    <View style={styles.weekBlock}>
+      <View style={styles.week} accessibilityLabel="This week">
+        {WEEK.map((w, i) => {
+          const card = cards.get(w);
+          const day = split.days.find((d) => d.weekday === w);
+          const color =
+            w === t && day
+              ? colors.spotterRed
+              : day && doneThisWeek.has(day.id)
+                ? colors.ink
+                : day
+                  ? colors.inkMuted
+                  : colors.surfaceRaised;
+          return (
+            <Animated.View key={w} entering={rise(stagger(i, 160))} style={styles.weekDay}>
+              <PressableScale
+                accessibilityRole={card ? 'button' : undefined}
+                accessibilityLabel={card ? `${weekdayName(w)}'s session card` : weekdayName(w)}
+                disabled={!card}
+                haptic={card ? 'select' : null}
+                onPress={() => card && router.push({ pathname: '/session/[id]', params: { id: card } })}
+                style={styles.weekTap}
+              >
+                <SlantBar width={size.weekBar} height={size.stripBar} color={color} />
+                <Text style={[styles.weekLetter, (w === t || card) && styles.weekLetterToday]}>
+                  {weekdayLetter(w)}
+                </Text>
+              </PressableScale>
+            </Animated.View>
+          );
+        })}
+      </View>
+      {cards.size > 0 && (
+        <Animated.Text entering={rise(stagger(WEEK.length, 160))} style={styles.meta}>
+          Tap a day you trained for its card.
+        </Animated.Text>
+      )}
     </View>
   );
+}
+
+// The weekday a moment falls on, in the app's 1 (Monday) to 7 (Sunday).
+function weekdayOf(at: number): Weekday {
+  const js = new Date(at).getDay();
+  return (js === 0 ? 7 : js) as Weekday;
 }
 
 function StartButton({ label, onPress }: { label: string; onPress: () => void }) {
@@ -406,7 +443,9 @@ const styles = StyleSheet.create({
   title: { ...type.titleL, color: colors.ink },
   meta: { ...type.caption, color: colors.inkMuted },
   week: { flexDirection: 'row', gap: space[2] },
-  weekDay: { flex: 1, alignItems: 'center', gap: space[2] },
+  weekBlock: { gap: space[3] },
+  weekDay: { flex: 1 },
+  weekTap: { alignItems: 'center', gap: space[2], minHeight: size.tapTarget },
   weekLetter: { ...type.labelWide, color: colors.inkMuted },
   weekLetterToday: { color: colors.ink },
   start: {

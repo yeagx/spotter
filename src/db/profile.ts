@@ -24,6 +24,7 @@ export type Profile = {
   restExercisesSec: number | null; // null: same as between sets
   restAlert: RestAlert; // how the end of a rest reaches you when you're not looking
   focusMode: boolean; // Do Not Disturb while a session runs
+  musicControls: boolean; // play/pause, next, previous on the workout screen
 };
 
 type ProfileRow = {
@@ -41,6 +42,7 @@ type ProfileRow = {
   rest_exercises_sec: number | null;
   rest_alert: RestAlert;
   focus_mode: number | null;
+  music_controls: number | null;
 };
 
 const toProfile = (r: ProfileRow): Profile => ({
@@ -58,6 +60,7 @@ const toProfile = (r: ProfileRow): Profile => ({
   restExercisesSec: r.rest_exercises_sec,
   restAlert: r.rest_alert ?? 'sound',
   focusMode: r.focus_mode === 1,
+  musicControls: r.music_controls !== 0,
 });
 
 // One profile per install in v1.
@@ -70,7 +73,7 @@ export async function getProfile(db: SQLiteDatabase): Promise<Profile | null> {
 
 export async function createProfile(
   db: SQLiteDatabase,
-  p: Omit<Profile, 'id' | 'units' | 'restSetsSec' | 'restExercisesSec' | 'restAlert' | 'focusMode'>,
+  p: Omit<Profile, 'id' | 'units' | 'restSetsSec' | 'restExercisesSec' | 'restAlert' | 'focusMode' | 'musicControls'>,
 ): Promise<void> {
   const now = Date.now();
   await db.runAsync(
@@ -106,6 +109,7 @@ const COLUMNS: Record<keyof Omit<Profile, 'id'>, string> = {
   restExercisesSec: 'rest_exercises_sec',
   restAlert: 'rest_alert',
   focusMode: 'focus_mode',
+  musicControls: 'music_controls',
 };
 
 export async function updateProfile(

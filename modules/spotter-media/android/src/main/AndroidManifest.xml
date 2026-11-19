@@ -1,29 +1,4 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <!-- Focus mode: turns on Do Not Disturb while a session runs. -->
   <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
-
-  <!-- To show the playing app's name and open it (Android 11+ hides other apps otherwise). -->
-  <queries>
-    <intent>
-      <action android:name="android.intent.action.MAIN" />
-      <category android:name="android.intent.category.LAUNCHER" />
-    </intent>
-  </queries>
-
-  <application>
-    <!--
-      Never reads notifications. Android only lets an app see what another app is playing
-      (title, artist, cover) and control it once the user turns on Notification access for
-      a listener like this one. Only the system can bind to it.
-    -->
-    <service
-      android:name="expo.modules.spottermedia.SpotterMediaListener"
-      android:label="Spotter music controls"
-      android:exported="true"
-      android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-      <intent-filter>
-        <action android:name="android.service.notification.NotificationListenerService" />
-      </intent-filter>
-    </service>
-  </application>
 </manifest>

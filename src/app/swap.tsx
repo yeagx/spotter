@@ -11,6 +11,7 @@ import { SearchIcon } from '@/components/Icons';
 import { StackScreen } from '@/components/StackScreen';
 import { TargetsLine } from '@/components/TargetsLine';
 import { listExercises } from '@/db/exercises';
+import { ANIMATED_ROWS, useSettledList } from '@/hooks/useSettledList';
 import type { Exercise } from '@/db/types';
 import { equipmentLabel, muscleLabel, searchText } from '@/lib/labels';
 import { rise } from '@/lib/motion';
@@ -80,6 +81,8 @@ export default function SwapScreen() {
           a.name.localeCompare(b.name),
       );
   }, [all, query, sameMuscle, request]);
+
+  const limit = useSettledList(all.length > 0);
 
   if (!request) return null;
 
@@ -169,10 +172,10 @@ export default function SwapScreen() {
                 </View>
               </Animated.View>
               <View>
-                {shown.map((e, i) => (
+                {shown.slice(0, limit).map((e, i) => (
                   <Animated.View
                     key={e.id}
-                    entering={firstPaint.current ? rise(240 + Math.min(i, 10) * 40) : undefined}
+                    entering={firstPaint.current && i < ANIMATED_ROWS ? rise(240 + i * 40) : undefined}
                   >
                     <Pressable
                       accessibilityRole="button"
