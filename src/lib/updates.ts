@@ -1,9 +1,15 @@
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 // Where release APKs are published. Must match the GitHub repo the releases go to.
 export const GITHUB_REPO = 'yeagx/spotter';
 
 export const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
+
+// iPhone builds are an unsigned IPA that people sign themselves (AltStore, SideStore,
+// Sideloadly), so an update can't be a one-tap download: it opens the website's iPhone
+// section, which links the new IPA and says how to install it.
+export const IOS_INSTALL_PAGE = 'https://spotter-eg.vercel.app/#ios';
 
 type Version = [number, number, number];
 
@@ -50,7 +56,7 @@ export async function checkForUpdate(): Promise<UpdateResult> {
     release: {
       version: latest.tag_name.replace(/^v?/, 'v'),
       notes: plainNotes(latest.body ?? ''),
-      url: apk?.browser_download_url ?? latest.html_url,
+      url: Platform.OS === 'ios' ? IOS_INSTALL_PAGE : (apk?.browser_download_url ?? latest.html_url),
     },
   };
 }

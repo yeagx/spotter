@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { Avatar } from '@/components/Avatar';
@@ -277,7 +277,10 @@ export default function ProfileScreen() {
             <View style={styles.release}>
               <Text style={styles.releaseTitle}>{release.version} is out.</Text>
               {release.notes ? <Text style={styles.notes}>{release.notes}</Text> : null}
-              <PrimaryButton label={`Download ${release.version}`} onPress={() => Linking.openURL(release.url)} />
+              <PrimaryButton
+                label={Platform.OS === 'ios' ? `Get ${release.version}` : `Download ${release.version}`}
+                onPress={() => Linking.openURL(release.url)}
+              />
             </View>
           )}
         </Animated.View>

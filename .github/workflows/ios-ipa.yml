@@ -1,0 +1,149 @@
+# Unsigned iPhone build, attached to the GitHub release next to the APK.
+#
+# There's no Mac or Apple developer account behind Spotter, so the IPA isn't signed.
+# People install it with AltStore, SideStore or Sideloadly, which sign it with their own
+# Apple ID (see the iPhone section on spotter-eg.vercel.app).
+#
+# Runs when a release tag vX.Y.Z is pushed (the same tags as the APK), or by hand from
+# the Actions tab. The tag must match app.json's version.
+
+name: iOS IPA
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release to attach the IPA to, e.g. v1.7.2. Leave empty for app.json's version.
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-ipa-${{ github.ref }}-${{ inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  CI: '1'
+  EXPO_NO_TELEMETRY: '1'
+
+jobs:
+  ipa:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Work out the version
+        id: version
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          APP_VERSION=$(node -p "require('./app.json').expo.version")
+          if [ "$EVENT" = "push" ]; then TAG="$GITHUB_REF_NAME"; else TAG="$INPUT_TAG"; fi
+          [ -z "$TAG" ] && TAG="v$APP_VERSION"
+          if [ "$TAG" != "v$APP_VERSION" ]; then
+            echo "::error::Tag $TAG doesn't match app.json's version ($APP_VERSION)."
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "ipa=Spotter-$TAG.ipa" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Use the latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      # node_modules is cached whole (patches included: postinstall applies them), keyed on
+      # the lockfile and the patches.
+      - name: Restore node_modules
+        id: node-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json', 'patches/**') }}
+
+      - name: Install dependencies
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Generate the iOS project
+        run: npx expo prebuild -p ios --clean --no-install
+
+      # Pods follow the native dependencies (lockfile, app.json plugins, patches).
+      - name: Restore Pods
+        uses: actions/cache@v4
+        with:
+          path: |
+            ios/Pods
+            ios/Podfile.lock
+            ~/Library/Caches/CocoaPods
+          key: pods-${{ runner.os }}-${{ hashFiles('package-lock.json', 'app.json', 'patches/**') }}
+          restore-keys: pods-${{ runner.os }}-
+
+      - name: Install Pods
+        working-directory: ios
+        run: pod install
+
+      - name: Build the app (unsigned)
+        run: |
+          set -o pipefail
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          echo "Workspace $WORKSPACE, scheme $SCHEME"
+          xcodebuild archive \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Spotter.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            -quiet
+
+      - name: Package the IPA
+        env:
+          IPA: ${{ steps.version.outputs.ipa }}
+        run: |
+          APP=$(ls -d "$RUNNER_TEMP/Spotter.xcarchive/Products/Applications/"*.app | head -1)
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
+          (cd "$RUNNER_TEMP/ipa" && zip -qry "$GITHUB_WORKSPACE/$IPA" Payload)
+          ls -lh "$GITHUB_WORKSPACE/$IPA"
+
+      - name: Keep the IPA as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.ipa }}
+          path: ${{ steps.version.outputs.ipa }}
+          retention-days: 30
+
+      # The tag is usually created with the release, but a pushed tag can come first: wait
+      # for the release (up to 45 minutes) rather than miss it.
+      - name: Attach the IPA to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          IPA: ${{ steps.version.outputs.ipa }}
+        run: |
+          for i in $(seq 1 45); do
+            gh release view "$TAG" > /dev/null 2>&1 && break
+            echo "No release $TAG yet, waiting a minute ($i/45)"
+            sleep 60
+          done
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            echo "::warning::No release $TAG on GitHub. The IPA is kept as this run's artifact."
+            exit 0
+          fi
+          gh release upload "$TAG" "$IPA" --clobber
+          echo "Attached $IPA to $TAG"
