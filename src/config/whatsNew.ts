@@ -10,6 +10,19 @@ export type WhatsNewEntry = { version: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: '1.8.0',
+    items: [
+      {
+        title: 'Spotter on iPhone',
+        line: 'The whole app on iPhone too: widgets, the workout on the lock screen, check-ins from Apple Health, music and Focus mode.',
+      },
+      {
+        title: 'Waves that follow the song',
+        line: 'On Android, the music strip’s bars can move with the music itself. Open the player once to turn it on.',
+      },
+    ],
+  },
+  {
     version: '1.7.2',
     items: [
       {

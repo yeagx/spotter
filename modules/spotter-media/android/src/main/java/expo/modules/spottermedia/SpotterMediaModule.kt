@@ -94,10 +94,10 @@ class SpotterMediaModule : Module() {
     var v: Visualizer? = null
     return try {
       v = Visualizer(0) // 0: the mix of everything playing
-      v.enabled = false
+      v.setEnabled(false)
       val range = Visualizer.getCaptureSizeRange()
-      v.captureSize = CAPTURE_SIZE.coerceIn(range[0], range[1])
-      v.scalingMode = Visualizer.SCALING_MODE_NORMALIZED // the same at any volume
+      v.setCaptureSize(CAPTURE_SIZE.coerceIn(range[0], range[1]))
+      v.setScalingMode(Visualizer.SCALING_MODE_NORMALIZED) // the same at any volume
       v.setDataCaptureListener(
         object : Visualizer.OnDataCaptureListener {
           override fun onWaveFormDataCapture(vis: Visualizer?, waveform: ByteArray?, samplingRate: Int) {}
@@ -111,7 +111,7 @@ class SpotterMediaModule : Module() {
         false,
         true,
       )
-      v.enabled = true
+      v.setEnabled(true)
       visualizer = v
       true
     } catch (e: Exception) {
@@ -123,7 +123,7 @@ class SpotterMediaModule : Module() {
   private fun stopLevels(): Boolean {
     visualizer?.let {
       try {
-        it.enabled = false
+        it.setEnabled(false)
       } catch (_: Exception) {
       }
       it.release()
