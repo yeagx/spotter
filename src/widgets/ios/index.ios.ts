@@ -141,7 +141,7 @@ export async function refreshIosWidgets() {
     widgets.BestLift.updateSnapshot(props('BestLift', fallback, { lifts }));
 
     const body = await bodyModel(db);
-    widgets.Body.updateSnapshot(props('Body', { ...body, uri: link('body') }));
+    widgets.BodyStats.updateSnapshot(props('BodyStats', { ...body, uri: link('body') }));
 
     widgets.Start.updateSnapshot(props('Start', { kind: 'start', uri: await startUri(db) }));
 

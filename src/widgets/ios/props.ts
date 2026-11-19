@@ -3,7 +3,9 @@ import { colors, radius, size, slant, space, type } from '@/theme';
 // What the iPhone widgets are handed. The layout (layout.tsx) runs in the widget
 // extension and can't import anything, so the theme travels with the data.
 
-export const IOS_WIDGETS = ['Today', 'Month', 'BestLift', 'Body', 'Start', 'Me', 'MeSmall'] as const;
+// Names match app.json's expo-widgets list. Not "Body": SwiftUI's widget bundle already
+// has a type by that name, and the generated Swift wouldn't compile.
+export const IOS_WIDGETS = ['Today', 'Month', 'BestLift', 'BodyStats', 'Start', 'Me', 'MeSmall'] as const;
 export type IosWidgetName = (typeof IOS_WIDGETS)[number];
 
 // The fonts by their PostScript names, which is how the widget extension registers them

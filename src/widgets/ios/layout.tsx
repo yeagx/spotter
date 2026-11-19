@@ -327,7 +327,7 @@ export function SpotterWidget(props: IosWidgetProps, env: WidgetEnvironment<{ li
   }
 
   // ---------- Body ----------
-  if (props.w === 'Body') {
+  if (props.w === 'BodyStats') {
     if (m.kind === 'empty') {
       return card(
         m.uri,

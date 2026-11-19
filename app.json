@@ -269,7 +269,7 @@
               }
             },
             {
-              "name": "Body",
+              "name": "BodyStats",
               "displayName": "Body",
               "description": "Your last check-in.",
               "ios": {
