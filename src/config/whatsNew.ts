@@ -10,6 +10,31 @@ export type WhatsNewEntry = { version: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: '1.7.1',
+    items: [
+      {
+        title: 'Music, no special access',
+        line: 'Play, pause and skip from the workout without Notification access, so Spotter installs cleanly. Tap the strip for previous and next.',
+      },
+      {
+        title: 'Focus you can feel',
+        line: 'A crisp click as Do Not Disturb turns on with your session, a soft one as it turns off.',
+      },
+      {
+        title: 'Any day’s card',
+        line: 'Tap a day you trained on Today’s week strip to save or share its session card.',
+      },
+      {
+        title: 'The widget turns pages',
+        line: 'A long day no longer gets cut off. Tap 1 / 2 at the bottom of the Today widget for the rest.',
+      },
+      {
+        title: 'Smoother picking',
+        line: 'The exercise library and swap list open and tick without stutter.',
+      },
+    ],
+  },
+  {
     version: '1.7.0',
     items: [
       {
