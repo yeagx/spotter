@@ -1,20 +1,23 @@
-import { FlexWidget, SvgWidget, TextWidget } from 'react-native-android-widget';
+import { FlexWidget, OverlapWidget, SvgWidget, TextWidget } from 'react-native-android-widget';
 
-import { colors, radius, size, space, type } from '@/theme';
+import { colors, size, space, type } from '@/theme';
 
 import { link, type TodayModel, type WeekBar } from './data';
 import { stripSvg } from './svg';
 import { Card, Label, Line, SetUp, Spacer, lineH, padFor, rowH, rowsThatFit, scaleFor, type Box, type Scale } from './ui';
 
 // Today (4x2): the day label with the week beside it as seven slanted bars, the day's
-// name with a red Start, then as many whole exercises as fit, with last weights, and a
-// line at the bottom with the totals. A longer day turns into pages: "1 / 2 ›" at the
-// bottom shows the next ones. (Not a scrolling list: on the home screen it fights the
-// launcher's swipe up and cuts its last row in half.) With room to spare the type
-// steps up.
+// name with a red Start, then the day's exercises with last weights, and a line at the
+// bottom with the totals.
+//
+// The exercises fill whatever room the widget has; a longer day runs on under a fade at
+// the bottom edge, like the app's own scroll edges. It doesn't scroll: some launchers
+// (OnePlus among them) take every swipe for themselves, and a widget can't stop them, so
+// a list that scrolls on one phone would fight the app drawer on another. A tap opens
+// the day in Spotter, everywhere. With room to spare the type steps up.
 
-// What the page tap sends; register.tsx turns it into a redraw on that page.
-export const TODAY_PAGE = 'TODAY_PAGE';
+// The surface colour at no opacity, for the fade's top edge.
+const SURFACE_CLEAR = 'rgba(22, 22, 22, 0)';
 
 const WEEK_BAR_W = space[3];
 const WEEK_W = WEEK_BAR_W * 7 + space[1] * 6;
@@ -25,7 +28,7 @@ const BAR_COLOR: Record<WeekBar, string> = {
   rest: colors.surfaceRaised,
 };
 
-export function TodayWidget({ m, b, page = 0 }: { m: TodayModel; b: Box; page?: number }) {
+export function TodayWidget({ m, b }: { m: TodayModel; b: Box }) {
   if (m.kind === 'setup') return <SetUp b={b} />;
   const pad = padFor(b);
   const s = scaleFor(b, WEEK_W * 2);
@@ -63,13 +66,11 @@ export function TodayWidget({ m, b, page = 0 }: { m: TodayModel; b: Box; page?: 
     m.state === 'done'
       ? 'done today. good session.'
       : `${all} ${all === 1 ? 'exercise' : 'exercises'} · ${m.sets} sets`;
-  // The bottom line (totals, and the page button) is a touch taller than a row; what's
-  // left above it holds whole exercises, a page at a time.
-  const bottomH = Math.max(rowH(s, b), PAGE_TAP);
-  const perPage = rowsThatFit(listSpace - bottomH - s.gap, rowH(s, b), s.gap);
-  const pages = perPage > 0 ? Math.ceil(all / perPage) : 1;
-  const at = pages > 0 ? page % pages : 0;
-  const shown = m.exercises.slice(at * perPage, at * perPage + perPage);
+  // Room left for exercises above the totals line. The rows are drawn as they are and
+  // clipped by the box; the fade only goes on when the day runs past it, so a short day
+  // never has its last row dimmed.
+  const roomForRows = listSpace - rowH(s, b) - space[1];
+  const overflows = all * (rowH(s, b) + s.gap) - s.gap > roomForRows;
 
   const pill = m.state === 'done' ? null : m.state === 'resume' ? 'Resume' : 'Start';
   const pillW = pill ? Math.round((pill.length * type.bodyStrong.fontSize * 0.62 + space[4] * 2) * b.fs) : 0;
@@ -101,45 +102,38 @@ export function TodayWidget({ m, b, page = 0 }: { m: TodayModel; b: Box; page?: 
           </FlexWidget>
         )}
       </FlexWidget>
-      {shown.length > 0 && (
-        <FlexWidget style={{ width: 'match_parent', flexDirection: 'column', flexGap: s.gap, marginTop: space[2] }}>
-          {shown.map((e, i) => (
-            <ExerciseRow key={i} name={e.name} last={e.last} s={s} />
-          ))}
-        </FlexWidget>
-      )}
-      <Spacer />
-      {listSpace >= bottomH && (
-        <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'center', flexGap: space[3] }}>
-          <FlexWidget style={{ flex: 1 }}>
-            <Line text={summary} style={s.row} color={colors.inkMuted} />
-          </FlexWidget>
-          {pages > 1 && (
-            // Its own tap: flips the page instead of opening the app.
-            <FlexWidget
-              clickAction={TODAY_PAGE}
-              clickActionData={{ page: at + 1 }}
-              accessibilityLabel={`Page ${at + 1} of ${pages}. Show the next exercises.`}
-              style={{
-                height: Math.max(rowH(s, b), PAGE_TAP),
-                paddingHorizontal: space[3],
-                borderRadius: radius.md,
-                backgroundColor: colors.surfaceRaised,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Line text={`${at + 1} / ${pages}  ›`} style={s.num} />
+      {slots > 1 && all > 0 ? (
+        <FlexWidget style={{ width: 'match_parent', flex: 1, marginTop: space[2], overflow: 'hidden' }}>
+          <OverlapWidget style={{ width: 'match_parent', height: 'match_parent', overflow: 'hidden' }}>
+            <FlexWidget style={{ width: 'match_parent', height: 'match_parent', flexDirection: 'column', flexGap: s.gap }}>
+              {m.exercises.map((e, i) => (
+                <ExerciseRow key={i} name={e.name} last={e.last} s={s} />
+              ))}
             </FlexWidget>
-          )}
+            {overflows && (
+              <FlexWidget style={{ width: 'match_parent', height: 'match_parent', justifyContent: 'flex-end' }}>
+                <FlexWidget
+                  style={{
+                    width: 'match_parent',
+                    height: rowH(s, b) + s.gap,
+                    backgroundGradient: { from: SURFACE_CLEAR, to: colors.surface, orientation: 'TOP_BOTTOM' },
+                  }}
+                />
+              </FlexWidget>
+            )}
+          </OverlapWidget>
+        </FlexWidget>
+      ) : (
+        <Spacer />
+      )}
+      {slots > 0 && (
+        <FlexWidget style={{ width: 'match_parent', marginTop: space[1] }}>
+          <Line text={summary} style={s.row} color={colors.inkMuted} />
         </FlexWidget>
       )}
     </Card>
   );
 }
-
-// The page button: a comfortable thumb target on a home screen, as tall as the room allows.
-const PAGE_TAP = size.stripBar;
 
 // Day label on the left, the week on the right. The week goes first if it would crowd
 // the label.

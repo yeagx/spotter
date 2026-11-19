@@ -1,0 +1,56 @@
+diff --git a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
+index a68fef1..1b54532 100644
+--- a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
++++ b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
+@@ -229,14 +229,46 @@ public class RNWidget {
+             intent.putExtra("clickAction", clickableView.getClickAction());
+             intent.putExtra("clickActionData", Arguments.toBundle(clickableView.getClickActionData()));
+         }
+-        PendingIntent pendingIntent = PendingIntent.getBroadcast(
++        // Spotter: taps that only open the app start it directly, so the launcher can
++        // play its widget-to-app launch animation (Android 12+). A broadcast in between
++        // loses it. Every other tap still goes through the provider as before.
++        PendingIntent pendingIntent = directOpenIntent(clickableView);
++        if (pendingIntent == null) {
++            pendingIntent = PendingIntent.getBroadcast(
++                appContext,
++                0,
++                intent,
++                PendingIntent.FLAG_UPDATE_CURRENT
++                    | PendingIntent.FLAG_MUTABLE
++            );
++        }
++        widgetView.setOnClickPendingIntent(button, pendingIntent);
++    }
++
++    // Spotter: an activity PendingIntent for OPEN_APP / OPEN_URI, or null for anything else.
++    private PendingIntent directOpenIntent(ClickableView clickableView) {
++        if (clickableView == null) return null;
++        String action = clickableView.getClickAction();
++        Intent open;
++        if ("OPEN_APP".equals(action)) {
++            open = appContext.getPackageManager().getLaunchIntentForPackage(appContext.getPackageName());
++            if (open == null) return null;
++        } else if ("OPEN_URI".equals(action)) {
++            ReadableMap data = clickableView.getClickActionData();
++            String uri = data != null && data.hasKey("uri") ? data.getString("uri") : null;
++            if (uri == null) return null;
++            open = new Intent(Intent.ACTION_VIEW, Uri.parse(uri)).setPackage(appContext.getPackageName());
++            if (open.resolveActivity(appContext.getPackageManager()) == null) return null;
++        } else {
++            return null;
++        }
++        open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
++        return PendingIntent.getActivity(
+             appContext,
+             0,
+-            intent,
+-            PendingIntent.FLAG_UPDATE_CURRENT
+-                | PendingIntent.FLAG_MUTABLE
++            open,
++            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+         );
+-        widgetView.setOnClickPendingIntent(button, pendingIntent);
+     }
+ 
+     private void addCollectionViews(int widgetId, RemoteViews remoteWidgetView, WidgetWithViews widgetWithViews, List<List<String>> lightImageNames, List<List<String>> darkImageNames) {
