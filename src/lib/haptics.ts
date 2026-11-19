@@ -28,11 +28,11 @@ export const haptic = {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(quiet);
   },
   focusOn: () => {
-    toggle(Haptics.AndroidHaptics.Toggle_On);
+    toggle(Haptics.AndroidHaptics.Toggle_On, Haptics.ImpactFeedbackStyle.Rigid);
     setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(quiet), FOCUS_BEAT_MS);
   },
   focusOff: () => {
-    toggle(Haptics.AndroidHaptics.Toggle_Off);
+    toggle(Haptics.AndroidHaptics.Toggle_Off, Haptics.ImpactFeedbackStyle.Soft);
   },
 };
 
@@ -40,12 +40,13 @@ export const haptic = {
 // to feel as one gesture.
 const FOCUS_BEAT_MS = 140;
 
-// Android's own switch clicks (the crisp ones its settings toggles use). Elsewhere, or on
-// a phone that can't play them, a light tap stands in.
-function toggle(kind: Haptics.AndroidHaptics) {
+// Android's own switch clicks (the crisp ones its settings toggles use). On iPhone, the
+// closest taps it has: rigid for on, soft for off. A phone that can't play either gets a
+// light tap.
+function toggle(kind: Haptics.AndroidHaptics, ios: Haptics.ImpactFeedbackStyle) {
   const fallback = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(quiet);
   if (Platform.OS !== 'android') {
-    fallback();
+    Haptics.impactAsync(ios).catch(fallback);
     return;
   }
   Haptics.performAndroidHapticsAsync(kind).catch(fallback);

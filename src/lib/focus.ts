@@ -18,6 +18,10 @@ const KEY = 'focus_dnd';
 // there's no access to turn it on, or nothing (already handled for this session).
 export type FocusEnter = 'on' | 'already' | 'no-access' | null;
 
+// iPhone's Focus mode runs shortcuts the user adds (focus.ios.ts). Android needs none.
+export const focusShortcutsAdded = async (_db: SQLiteDatabase) => true;
+export const setFocusShortcutsAdded = async (_db: SQLiteDatabase, _added: boolean) => {};
+
 export async function enterFocus(db: SQLiteDatabase): Promise<FocusEnter> {
   if (await getMeta(db, KEY)) {
     setRestFocus(getDnd() === DND_PRIORITY);

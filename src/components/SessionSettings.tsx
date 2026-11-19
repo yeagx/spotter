@@ -1,15 +1,22 @@
+import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { AppState, StyleSheet, Text, View } from 'react-native';
+import { AppState, Platform, StyleSheet, Text, View } from 'react-native';
 
 import { showDialog } from '@/components/DialogHost';
 import { Segmented } from '@/components/Segmented';
 import type { Profile } from '@/db/profile';
+import { focusShortcutsAdded, setFocusShortcutsAdded } from '@/lib/focus';
+import { SETUP_STEPS, SETUP_TITLE, openShortcuts } from '@/lib/focusShortcuts';
 import { dndSupported, hasDndAccess, mediaSupported, musicHint, openDndSettings } from '@/lib/media';
 import { colors, radius, size, space, type } from '@/theme';
 
 // "During a session" in Profile: music controls on the workout screen, and Focus mode.
-// Focus needs Do Not Disturb access once; this says why and takes you there.
-// Absent on builds without the native module (web, an older APK).
+// On Android, Focus needs Do Not Disturb access once; this says why and takes you there.
+// On iPhone it runs two shortcuts the user adds once (lib/focusShortcuts.ts); this shows
+// how. Music is absent on builds without the native module (web, an older APK).
+
+// iPhone's Focus mode needs no native module, only Shortcuts.
+const shortcutFocus = Platform.OS === 'ios';
 
 type Props = {
   profile: Profile;
@@ -25,6 +32,11 @@ export function SessionSettings({ profile, update }: Props) {
   const [music, setMusic] = useState(profile.musicControls);
   const [dnd, setDnd] = useState(hasDndAccess);
   const [focus, setFocus] = useState(profile.focusMode);
+  const db = useSQLiteContext();
+  const [added, setAdded] = useState(true); // the iPhone shortcuts; checked below
+  useEffect(() => {
+    if (shortcutFocus) focusShortcutsAdded(db).then(setAdded, () => {});
+  }, [db]);
 
   // Do Not Disturb access is granted in Settings, so check again on coming back.
   useEffect(() => {
@@ -34,11 +46,32 @@ export function SessionSettings({ profile, update }: Props) {
     return () => sub.remove();
   }, []);
 
-  if (!mediaSupported && !dndSupported) return null;
+  if (!mediaSupported && !dndSupported && !shortcutFocus) return null;
+
+  const showSetup = async () => {
+    const i = await showDialog({
+      title: SETUP_TITLE,
+      message: SETUP_STEPS,
+      actions: [
+        { label: 'Not now', kind: 'neutral' },
+        { label: 'Open Shortcuts', kind: 'primary' },
+      ],
+    });
+    if (i === 1) openShortcuts();
+  };
+
+  const markAdded = async () => {
+    setAdded(true);
+    await setFocusShortcutsAdded(db, true);
+  };
 
   const setFocusMode = async (on: boolean) => {
     setFocus(on);
     await update({ focusMode: on });
+    if (shortcutFocus) {
+      if (on && !added) await showSetup();
+      return;
+    }
     if (!on || hasDndAccess()) return;
     const i = await showDialog({
       title: 'Allow Do Not Disturb',
@@ -73,6 +106,35 @@ export function SessionSettings({ profile, update }: Props) {
         </View>
       )}
 
+      {shortcutFocus && (
+        <View style={styles.block}>
+          <View style={styles.rowText}>
+            <Text style={styles.rowLabel}>Focus mode</Text>
+            <Text style={styles.hint}>
+              {focus && !added
+                ? 'Waiting for the two Focus shortcuts.'
+                : 'Your Focus on while a session runs, through two shortcuts. Shortcuts opens for a second as a session starts and ends.'}
+            </Text>
+          </View>
+          <Segmented options={ON_OFF} value={focus ? 'on' : 'off'} onChange={(v) => setFocusMode(v === 'on')} />
+          {focus && !added && (
+            <View style={styles.links}>
+              <Text accessibilityRole="button" onPress={showSetup} style={[styles.hint, styles.link, styles.tap]}>
+                How to add them
+              </Text>
+              <Text accessibilityRole="button" onPress={markAdded} style={[styles.hint, styles.link, styles.tap]}>
+                They’re added
+              </Text>
+            </View>
+          )}
+          {focus && added && (
+            <Text accessibilityRole="button" onPress={showSetup} style={[styles.hint, styles.link, styles.tap]}>
+              How the shortcuts work
+            </Text>
+          )}
+        </View>
+      )}
+
       {dndSupported && (
         <View style={styles.block}>
           <View style={styles.rowText}>
@@ -104,4 +166,5 @@ const styles = StyleSheet.create({
   hint: { ...type.caption, color: colors.inkMuted },
   link: { color: colors.ink, textDecorationLine: 'underline' },
   tap: { minHeight: size.tapTarget, textAlignVertical: 'center' },
+  links: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space[4] },
 });
