@@ -14,10 +14,10 @@ public class SpotterMediaModule: Module {
   public func definition() -> ModuleDefinition {
     Name("SpotterMedia")
 
-    // Whether Apple Music is playing right now.
+    // Whether Apple Music is playing right now. The player lives on the main thread.
     Function("isMusicActive") { () -> Bool in
-      self.player.playbackState == .playing
-    }.runOnQueue(.main)
+      self.onMain { self.player.playbackState == .playing }
+    }
 
     // play / pause / toggle / next / previous. The first press may ask for access to
     // Apple Music (once); the press goes through as soon as it's allowed.
@@ -29,12 +29,15 @@ public class SpotterMediaModule: Module {
           guard status == .authorized else { return }
           DispatchQueue.main.async { self.press(action) }
         }
-        return true
       default:
-        self.press(action)
-        return true
+        DispatchQueue.main.async { self.press(action) }
       }
-    }.runOnQueue(.main)
+      return true
+    }
+  }
+
+  private func onMain<T>(_ work: () -> T) -> T {
+    Thread.isMainThread ? work() : DispatchQueue.main.sync(execute: work)
   }
 
   private func press(_ action: String) {
