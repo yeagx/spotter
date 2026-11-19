@@ -8,6 +8,11 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
+      "icon": {
+        "light": "./assets/icon.png",
+        "dark": "./assets/ios-icon-dark.png",
+        "tinted": "./assets/ios-icon-tinted.png"
+      },
       "bundleIdentifier": "com.yeager.spotter",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
