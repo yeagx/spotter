@@ -1,13 +1,23 @@
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { AppState, Platform, StyleSheet, Text, View } from 'react-native';
+import { AppState, Linking, Platform, StyleSheet, Text, View } from 'react-native';
 
 import { showDialog } from '@/components/DialogHost';
 import { Segmented } from '@/components/Segmented';
 import type { Profile } from '@/db/profile';
 import { focusShortcutsAdded, setFocusShortcutsAdded } from '@/lib/focus';
 import { SETUP_STEPS, SETUP_TITLE, openShortcuts } from '@/lib/focusShortcuts';
-import { dndSupported, hasDndAccess, mediaSupported, musicHint, openDndSettings } from '@/lib/media';
+import {
+  WAVES_ASK,
+  allowLevels,
+  canHearLevels,
+  dndSupported,
+  hasDndAccess,
+  levelsSupported,
+  mediaSupported,
+  musicHint,
+  openDndSettings,
+} from '@/lib/media';
 import { colors, radius, size, space, type } from '@/theme';
 
 // "During a session" in Profile: music controls on the workout screen, and Focus mode.
@@ -32,6 +42,7 @@ export function SessionSettings({ profile, update }: Props) {
   const [music, setMusic] = useState(profile.musicControls);
   const [dnd, setDnd] = useState(hasDndAccess);
   const [focus, setFocus] = useState(profile.focusMode);
+  const [waves, setWaves] = useState(canHearLevels);
   const db = useSQLiteContext();
   const [added, setAdded] = useState(true); // the iPhone shortcuts; checked below
   useEffect(() => {
@@ -41,12 +52,24 @@ export function SessionSettings({ profile, update }: Props) {
   // Do Not Disturb access is granted in Settings, so check again on coming back.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'active') setDnd(hasDndAccess());
+      if (s === 'active') {
+        setDnd(hasDndAccess());
+        setWaves(canHearLevels());
+      }
     });
     return () => sub.remove();
   }, []);
 
   if (!mediaSupported && !dndSupported && !shortcutFocus) return null;
+
+  // Android: live waves need Record audio. Asked here too, for anyone who said Not now;
+  // once Android stops asking, its settings page is the way.
+  const turnOnWaves = async () => {
+    const i = await showDialog({ ...WAVES_ASK, actions: [{ label: 'Not now', kind: 'neutral' }, { label: 'Allow', kind: 'primary' }] });
+    if (i !== 1) return;
+    if (await allowLevels()) setWaves(true);
+    else Linking.openSettings();
+  };
 
   const showSetup = async () => {
     const i = await showDialog({
@@ -103,6 +126,15 @@ export function SessionSettings({ profile, update }: Props) {
               update({ musicControls: v === 'on' });
             }}
           />
+          {music && levelsSupported && (
+            <Text
+              accessibilityRole="button"
+              onPress={waves ? undefined : turnOnWaves}
+              style={[styles.hint, !waves && styles.link, styles.tap]}
+            >
+              {waves ? 'The waves follow your music.' : 'Make the waves follow the music'}
+            </Text>
+          )}
         </View>
       )}
 

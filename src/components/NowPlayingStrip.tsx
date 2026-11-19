@@ -1,3 +1,4 @@
+import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -14,11 +15,23 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import { showDialog } from '@/components/DialogHost';
 import { ChevronDownIcon, NextIcon, PauseIcon, PlayIcon, PreviousIcon } from '@/components/Icons';
 import { PressableScale } from '@/components/PressableScale';
 import { SlantBar } from '@/components/Slant';
 import { haptic } from '@/lib/haptics';
-import { mediaSupported, musicSource, useMusic, type MediaAction } from '@/lib/media';
+import { getMeta, setMeta } from '@/db/meta';
+import {
+  WAVES_ASK,
+  allowLevels,
+  canHearLevels,
+  levelsSupported,
+  listenToLevels,
+  mediaSupported,
+  musicSource,
+  useMusic,
+  type MediaAction,
+} from '@/lib/media';
 import { easeOut, rise } from '@/lib/motion';
 import { useProfile } from '@/state/profile';
 import { colors, motion, radius, size, space, type } from '@/theme';
@@ -35,6 +48,18 @@ export function NowPlayingStrip() {
   const [open, setOpen] = useState(false);
   const [keyboard, setKeyboard] = useState(false);
   const reduceMotion = useReducedMotion();
+  const db = useSQLiteContext();
+  const [canHear, setCanHear] = useState(canHearLevels);
+
+  // Android: the first time the player is opened, offer waves that follow the music
+  // (they need the Record audio permission, so it's asked, once, with the reason).
+  const offerWaves = async () => {
+    if (!levelsSupported || canHear) return;
+    if (await getMeta(db, WAVES_ASKED).catch(() => '1')) return;
+    await setMeta(db, WAVES_ASKED, '1').catch(() => {});
+    const i = await showDialog({ ...WAVES_ASK, actions: [{ label: 'Not now', kind: 'neutral' }, { label: 'Allow', kind: 'primary' }] });
+    if (i === 1) setCanHear(await allowLevels());
+  };
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboard(true));
@@ -84,11 +109,12 @@ export function NowPlayingStrip() {
           accessibilityState={{ expanded: open }}
           onPress={() => {
             haptic.select();
+            if (!open) offerWaves();
             setOpen((v) => !v);
           }}
           style={styles.info}
         >
-          <Equalizer playing={playing} />
+          <Equalizer playing={playing} live={canHear} />
           <View style={styles.text}>
             <Text style={styles.title}>{musicSource}</Text>
             <Text style={styles.sub}>{playing ? 'Playing' : 'Paused'}</Text>
@@ -120,18 +146,41 @@ export function NowPlayingStrip() {
   );
 }
 
-// Three slanted bars, the logo's cut, that rise and fall while music plays and rest
-// low when it's paused. Still with reduce-motion on.
-const EQ_MS = [520, 680, 440];
+// Asked once, the first time the player is opened (meta key).
+const WAVES_ASKED = 'waves_asked';
 
-function Equalizer({ playing }: { playing: boolean }) {
+// Three slanted bars, the logo's cut. With live waves (Android, allowed), they follow the
+// song: bass, mids and treble, as loud as they are right now. Otherwise they rise and fall
+// in a loop while music plays. Low when paused; still with reduce-motion on.
+const EQ_MS = [520, 680, 440];
+const LEVEL_MS = 90; // each new reading eases in over about two readings' time
+
+function Equalizer({ playing, live }: { playing: boolean; live: boolean }) {
   const reduceMotion = useReducedMotion();
   const a = useSharedValue(0.35);
   const b = useSharedValue(0.35);
   const c = useSharedValue(0.35);
   const bars = [a, b, c];
+  const [hearing, setHearing] = useState(false);
 
   useEffect(() => {
+    if (!playing || !live || reduceMotion) return;
+    const stop = listenToLevels((levels) => {
+      levels.forEach((x, i) => {
+        if (bars[i]) bars[i].value = withTiming(0.2 + 0.8 * x, { duration: LEVEL_MS, easing: Easing.out(Easing.quad) });
+      });
+    });
+    if (!stop) return;
+    bars.forEach((v) => cancelAnimation(v));
+    setHearing(true);
+    return () => {
+      stop();
+      setHearing(false);
+    };
+  }, [playing, live, reduceMotion]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (hearing) return;
     bars.forEach((v, i) => {
       cancelAnimation(v);
       if (!playing || reduceMotion) {
@@ -145,7 +194,7 @@ function Equalizer({ playing }: { playing: boolean }) {
         withRepeat(withSequence(withTiming(1, { duration: ms, easing: ease }), withTiming(0.3, { duration: ms, easing: ease })), -1),
       );
     });
-  }, [playing, reduceMotion]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [playing, reduceMotion, hearing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <View style={styles.eq} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">

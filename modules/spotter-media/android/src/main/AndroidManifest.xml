@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <!-- Focus mode: turns on Do Not Disturb while a session runs. -->
   <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+  <!-- Live music waves: Android's Visualizer only gives the playing sound's levels to an
+       app holding these. Nothing is recorded or kept; asked for only when the user opts in. -->
+  <uses-permission android:name="android.permission.RECORD_AUDIO" />
+  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 </manifest>
