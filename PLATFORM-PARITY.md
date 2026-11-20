@@ -38,7 +38,7 @@ Onboarding, plan and day editing, exercise library and picker, custom exercises 
 | 16 | **Back up / restore** | Share sheet → any app; file picker. | Share sheet → Save to Files / AirDrop; the picker accepts any file. | Works (untested) | — |
 | 17 | **Rest alerts blocked → open Settings** | Opens app settings. | Opens Spotter in Settings. | Works | — |
 | 18 | **Exact alarms, notification channels, blocked permissions** | Needed for on-time alerts. | Not a thing on iOS. | n/a | — |
-| 19 | **Music waves that follow the song** | The strip's three bars follow the real sound (bass, mids, treble) through `Visualizer` on the output mix, in `modules/spotter-media`. Needs Record audio, asked once with the reason when the player is first opened (or Profile → Make the waves follow the music); without it, a loop. | **Apple doesn't allow** any app to read another app's sound, Apple Music included. The bars keep the loop that follows play and pause. | Partial (Apple's limit) | Nothing iOS allows. |
+| 19 | **Music waves that follow the song** | The strip's three bars follow the real sound (bass, mids, treble) through `Visualizer` on the output mix, in `modules/spotter-media`. Needs Record audio (shown as Microphone in Settings; `plugins/withLiveWaves.js` keeps expo-image-picker from stripping it), asked once with the reason when the player is first opened (or Profile → Make the waves follow the music); without it, a loop. | **Apple doesn't allow** any app to read another app's sound, Apple Music included. The bars keep the loop that follows play and pause. | Partial (Apple's limit) | Nothing iOS allows. |
 
 ## Things to know about sideloading
 
